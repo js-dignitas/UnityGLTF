@@ -28,6 +28,8 @@ Shader "GLTF/PbrMetallicRoughness"
 		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
 		[HideInInspector] _DstBlend ("__dst", Float) = 0.0
 		[HideInInspector] _ZWrite ("__zw", Float) = 1.0
+
+        _Cull ("Cull", Int) = 0.0 // Off
 	}
 
 	CGINCLUDE
@@ -49,6 +51,7 @@ Shader "GLTF/PbrMetallicRoughness"
 
 			Blend [_SrcBlend] [_DstBlend]
 			ZWrite [_ZWrite]
+            Cull [_Cull]
 
 			CGPROGRAM
 			#pragma target 3.0
@@ -318,7 +321,6 @@ Shader "GLTF/PbrMetallicRoughness"
 			ENDCG
 		}
 	}
-
 
 	FallBack "VertexLit"
 	CustomEditor "PbrShaderGUI"

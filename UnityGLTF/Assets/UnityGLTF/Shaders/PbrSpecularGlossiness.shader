@@ -1,6 +1,4 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
-Shader "GLTF/PbrSpecularGlossiness"
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt) Shader "GLTF/PbrSpecularGlossiness"
 {
 	Properties
 	{
@@ -43,6 +41,8 @@ Shader "GLTF/PbrSpecularGlossiness"
 		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
 		[HideInInspector] _DstBlend ("__dst", Float) = 0.0
 		[HideInInspector] _ZWrite ("__zw", Float) = 1.0
+
+        _Cull ("Cull", Int) = 0.0 // Off
 	}
 
 	CGINCLUDE
@@ -64,6 +64,7 @@ Shader "GLTF/PbrSpecularGlossiness"
 
 			Blend [_SrcBlend] [_DstBlend]
 			ZWrite [_ZWrite]
+            Cull [_Cull]
 
 			CGPROGRAM
 			#pragma target 3.0

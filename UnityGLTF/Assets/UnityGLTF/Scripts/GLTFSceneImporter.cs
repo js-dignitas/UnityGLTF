@@ -1543,7 +1543,7 @@ namespace UnityGLTF
 			}
 
 			mapper.Material.name = def.Name;
-			mapper.AlphaMode = def.AlphaMode;
+            mapper.AlphaMode = AlphaMode.MASK; // def.AlphaMode;
 			mapper.DoubleSided = def.DoubleSided;
 
 			var mrMapper = mapper as IMetalRoughUniformMap;
@@ -1737,20 +1737,17 @@ namespace UnityGLTF
 				if (texture.Sampler != null)
 				{
 					var sampler = texture.Sampler.Value;
-					switch (sampler.MinFilter)
+					switch (sampler.MagFilter)
 					{
-						case MinFilterMode.Nearest:
-						case MinFilterMode.NearestMipmapNearest:
-						case MinFilterMode.NearestMipmapLinear:
+						case MagFilterMode.None:
+                        case MagFilterMode.Nearest:
 							desiredFilterMode = FilterMode.Point;
 							break;
-						case MinFilterMode.Linear:
-						case MinFilterMode.LinearMipmapNearest:
-						case MinFilterMode.LinearMipmapLinear:
+						case MagFilterMode.Linear:
 							desiredFilterMode = FilterMode.Bilinear;
 							break;
 						default:
-							Debug.LogWarning("Unsupported Sampler.MinFilter: " + sampler.MinFilter);
+							Debug.LogWarning("Unsupported Sampler.MagFilter: " + sampler.MagFilter);
 							break;
 					}
 
