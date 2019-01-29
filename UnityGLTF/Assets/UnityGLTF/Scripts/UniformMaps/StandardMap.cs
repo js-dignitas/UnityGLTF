@@ -213,6 +213,7 @@ namespace UnityGLTF
 					_material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
 					_material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
 				}
+                _material.SetFloat("_Mode", (float)value);
 
 				_alphaMode = value;
 			}

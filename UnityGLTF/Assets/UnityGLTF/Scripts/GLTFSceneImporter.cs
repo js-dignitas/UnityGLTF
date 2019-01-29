@@ -190,6 +190,7 @@ namespace UnityGLTF
 			}
 			catch (Exception ex)
 			{
+                Debug.LogError(ex);
 				onLoadComplete?.Invoke(null, ExceptionDispatchInfo.Capture(ex));
 				throw;
 			}
