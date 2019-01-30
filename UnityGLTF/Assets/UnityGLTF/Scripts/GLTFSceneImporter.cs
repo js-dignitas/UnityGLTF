@@ -612,14 +612,21 @@ namespace UnityGLTF
 		
 		protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool linear, GLTFImage image, int imageCacheIndex)
 		{
-			Texture2D texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
+			Texture2D texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
+            //var texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
 			
 			if (stream is MemoryStream)
 			{
 				using (MemoryStream memoryStream = stream as MemoryStream)
 				{
-					//	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
-					texture.LoadImage(memoryStream.ToArray(), false);
+                    //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
+                    byte[] memArray = memoryStream.ToArray();
+					if (!texture.LoadImage(memArray, false))
+                    {
+			            texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
+                        texture.LoadImage(memArray, false);
+                    }
+
 				}
 			}
 			else
@@ -1810,14 +1817,19 @@ namespace UnityGLTF
 
 		protected virtual void ConstructImageFromGLB(GLTFImage image, int imageCacheIndex)
 		{
-			var texture = new Texture2D(0, 0);
-			var bufferView = image.BufferView.Value;
+			//var texture = new Texture2D(0, 0);
+            var texture = new Texture2D(0, 0, TextureFormat.DXT1, true);
+            var bufferView = image.BufferView.Value;
 			var data = new byte[bufferView.ByteLength];
 
 			var bufferContents = _assetCache.BufferCache[bufferView.Buffer.Id];
 			bufferContents.Stream.Position = bufferView.ByteOffset + bufferContents.ChunkOffset;
 			bufferContents.Stream.Read(data, 0, data.Length);
-			texture.LoadImage(data);
+			if (texture.LoadImage(data))
+            {
+			    texture = new Texture2D(0, 0);
+                texture.LoadImage(data);
+            }
 
 			_assetCache.ImageCache[imageCacheIndex] = texture;
 			
