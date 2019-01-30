@@ -397,7 +397,14 @@ namespace UnityGLTF
 				// we only load the streams if not a base64 uri, meaning the data is in the uri
 				if (image.Uri != null && !URIHelper.IsBase64Uri(image.Uri))
 				{
-					await _loader.LoadStream(image.Uri);
+                    try
+                    {
+                        await _loader.LoadStream(image.Uri);
+                    }
+                    catch(Exception e)
+                    {
+                        Debug.LogError(e);
+                    }
 					_assetCache.ImageStreamCache[sourceId] = _loader.LoadedStream;
 				}
 				else if (image.Uri == null && image.BufferView != null && _assetCache.BufferCache[image.BufferView.Value.Buffer.Id] == null)
@@ -596,7 +603,10 @@ namespace UnityGLTF
 				}
 
 				await TryYieldOnTimeout();
-				await ConstructUnityTexture(stream, markGpuOnly, linear, image, imageCacheIndex);
+                if (stream != null)
+                {
+                    await ConstructUnityTexture(stream, markGpuOnly, linear, image, imageCacheIndex);
+                }
 			}
 		}
 		
@@ -1232,9 +1242,20 @@ namespace UnityGLTF
 
 				await ConstructMeshPrimitive(primitive, meshId, i, materialIndex);
 
-				var primitiveObj = new GameObject("Primitive");
+                var primitiveObj = new GameObject("Primitive");
+                /*
+                GameObject primitiveObj;
+                if (mesh.Primitives.Count == 1)
+                {
+                    primitiveObj = parent.gameObject;
+                }
+                else
+                {
+                    primitiveObj = new GameObject("Primitive");
+                }
+                */
 
-				MaterialCacheData materialCacheData =
+                MaterialCacheData materialCacheData =
 					materialIndex >= 0 ? _assetCache.MaterialCache[materialIndex] : _defaultLoadedMaterial;
 
 				Material material = materialCacheData.GetContents(primitive.Attributes.ContainsKey(SemanticProperties.Color(0)));
@@ -1282,9 +1303,12 @@ namespace UnityGLTF
 						break;
 				}
 
-				primitiveObj.transform.SetParent(parent, false);
+                //if (mesh.Primitives.Count > 1)
+                {
+                    primitiveObj.transform.SetParent(parent, false);
+                }
 				primitiveObj.SetActive(true);
-				_assetCache.MeshCache[meshId][i].PrimitiveGO = primitiveObj;
+				//_assetCache.MeshCache[meshId][i].PrimitiveGO = primitiveObj;
 			}
 		}
 

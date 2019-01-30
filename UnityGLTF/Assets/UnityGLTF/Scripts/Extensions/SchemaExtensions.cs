@@ -447,12 +447,19 @@ namespace UnityGLTF.Extensions
 		/// <param name="attributeAccessor">The attribute accessor to modify</param>
 		public static void FlipFaces(ref AttributeAccessor attributeAccessor)
 		{
-			for (int i = 0; i < attributeAccessor.AccessorContent.AsTriangles.Length; i += 3)
-			{
-				uint temp = attributeAccessor.AccessorContent.AsUInts[i];
-				attributeAccessor.AccessorContent.AsUInts[i] = attributeAccessor.AccessorContent.AsUInts[i + 2];
-				attributeAccessor.AccessorContent.AsUInts[i + 2] = temp;
-			}
+            try
+            {
+                for (int i = 0; i < attributeAccessor.AccessorContent.AsTriangles.Length; i += 3)
+                {
+                    uint temp = attributeAccessor.AccessorContent.AsUInts[i];
+                    attributeAccessor.AccessorContent.AsUInts[i] = attributeAccessor.AccessorContent.AsUInts[i + 2];
+                    attributeAccessor.AccessorContent.AsUInts[i + 2] = temp;
+                }
+            }
+            catch(System.Exception e)
+            {
+                Debug.LogError(e);
+            }
 		}
 
 		/// <summary>
