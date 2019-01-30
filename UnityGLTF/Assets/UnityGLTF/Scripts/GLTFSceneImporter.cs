@@ -1249,8 +1249,7 @@ namespace UnityGLTF
 
 				await ConstructMeshPrimitive(primitive, meshId, i, materialIndex);
 
-                var primitiveObj = new GameObject("Primitive");
-                /*
+                //var primitiveObj = new GameObject("Primitive");
                 GameObject primitiveObj;
                 if (mesh.Primitives.Count == 1)
                 {
@@ -1260,7 +1259,6 @@ namespace UnityGLTF
                 {
                     primitiveObj = new GameObject("Primitive");
                 }
-                */
 
                 MaterialCacheData materialCacheData =
 					materialIndex >= 0 ? _assetCache.MaterialCache[materialIndex] : _defaultLoadedMaterial;
@@ -1310,11 +1308,11 @@ namespace UnityGLTF
 						break;
 				}
 
-                //if (mesh.Primitives.Count > 1)
+                if (mesh.Primitives.Count > 1)
                 {
                     primitiveObj.transform.SetParent(parent, false);
+				    primitiveObj.SetActive(true);
                 }
-				primitiveObj.SetActive(true);
 				//_assetCache.MeshCache[meshId][i].PrimitiveGO = primitiveObj;
 			}
 		}
