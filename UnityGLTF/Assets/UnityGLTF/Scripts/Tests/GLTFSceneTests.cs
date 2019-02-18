@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+﻿#if UNITY_EDITOR && USE_GLTF_TESTS
 using AssetGenerator;
 using Newtonsoft.Json;
 using NUnit.Compatibility;
