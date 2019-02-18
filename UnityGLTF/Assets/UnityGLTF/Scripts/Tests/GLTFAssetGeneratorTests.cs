@@ -1,4 +1,5 @@
-﻿using AssetGenerator;
+﻿#if UNITY_EDITOR
+using AssetGenerator;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
@@ -96,6 +97,8 @@ public class GLTFAssetGeneratorTests
 	   ActiveGLTFObject = new GameObject();
 		
 	   GLTFComponent gltfcomponent = ActiveGLTFObject.AddComponent<GLTFComponent>();
+	   gltfcomponent.UseStream = true;
+	   gltfcomponent.AppendStreamingAssets = false;
 	   gltfcomponent.GLTFUri = GLTF_ASSETS_PATH + modelPath;
 
 	   AssetGenerator.Manifest.Camera cam = cameras[Path.GetFileNameWithoutExtension(modelPath)];
@@ -146,3 +149,4 @@ public class GLTFAssetGeneratorTests
 	   }
     }
 }
+#endif

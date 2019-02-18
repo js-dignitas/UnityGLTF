@@ -294,8 +294,6 @@ namespace UnityGLTF
 					await ConstructMaterialImageBuffers(def);
 					await ConstructMaterial(def, materialIndex);
 				}
-
-				return _assetCache.MaterialCache[materialIndex].UnityMaterialWithVertexColor;
 			}
 			finally
 			{
@@ -304,6 +302,8 @@ namespace UnityGLTF
 					_isRunning = false;
 				}
 			}
+
+			return _assetCache.MaterialCache[materialIndex].UnityMaterialWithVertexColor;
 		}
 
 		/// <summary>

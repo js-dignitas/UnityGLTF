@@ -23,6 +23,8 @@ Shader "GLTF/PbrMetallicRoughness"
 		_EmissionColor("Emissive Factor", Color) = (0,0,0)
 		_EmissionMap("Emissive Texture", 2D) = "white" {}
 
+		_Cull("Cull", Int) = 0
+
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
 		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
@@ -51,7 +53,7 @@ Shader "GLTF/PbrMetallicRoughness"
 
 			Blend [_SrcBlend] [_DstBlend]
 			ZWrite [_ZWrite]
-            Cull [_Cull]
+			Cull [_Cull]
 
 			CGPROGRAM
 			#pragma target 3.0
@@ -89,7 +91,7 @@ Shader "GLTF/PbrMetallicRoughness"
 			Fog { Color (0,0,0,0) } // in additive pass fog should be black
 			ZWrite Off
 			ZTest LEqual
-
+			Cull [_Cull]
 			CGPROGRAM
 			#pragma target 3.0
 
@@ -119,7 +121,7 @@ Shader "GLTF/PbrMetallicRoughness"
 		Pass {
 			Name "ShadowCaster"
 			Tags { "LightMode" = "ShadowCaster" }
-
+			Cull [_Cull]
 			ZWrite On ZTest LEqual
 
 			CGPROGRAM
@@ -147,7 +149,7 @@ Shader "GLTF/PbrMetallicRoughness"
 		{
 			Name "DEFERRED"
 			Tags { "LightMode" = "Deferred" }
-
+			Cull [_Cull]
 			CGPROGRAM
 			#pragma target 3.0
 			#pragma exclude_renderers nomrt
@@ -183,7 +185,7 @@ Shader "GLTF/PbrMetallicRoughness"
 			Name "META" 
 			Tags { "LightMode"="Meta" }
 
-			Cull Off
+			Cull [_Cull]
 
 			CGPROGRAM
 			#pragma vertex vert_meta
@@ -211,7 +213,7 @@ Shader "GLTF/PbrMetallicRoughness"
 		{
 			Name "FORWARD" 
 			Tags { "LightMode" = "ForwardBase" }
-
+			Cull [_Cull]
 			Blend [_SrcBlend] [_DstBlend]
 			ZWrite [_ZWrite]
 
@@ -250,7 +252,7 @@ Shader "GLTF/PbrMetallicRoughness"
 			Fog { Color (0,0,0,0) } // in additive pass fog should be black
 			ZWrite Off
 			ZTest LEqual
-			
+			Cull [_Cull]
 			CGPROGRAM
 			#pragma target 2.0
 
@@ -280,7 +282,7 @@ Shader "GLTF/PbrMetallicRoughness"
 			Tags { "LightMode" = "ShadowCaster" }
 			
 			ZWrite On ZTest LEqual
-
+			Cull [_Cull]
 			CGPROGRAM
 			#pragma target 2.0
 
@@ -305,7 +307,7 @@ Shader "GLTF/PbrMetallicRoughness"
 			Name "META" 
 			Tags { "LightMode"="Meta" }
 
-			Cull Off
+			Cull [_Cull]
 
 			CGPROGRAM
 			#pragma vertex vert_meta

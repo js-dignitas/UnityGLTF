@@ -19,6 +19,8 @@ namespace UnityGLTF
 		public string GLTFUri = null;
 		public bool Multithreaded = true;
 		public bool UseStream = false;
+		public bool AppendStreamingAssets = true;
+		public bool PlayAnimationOnLoad = true;
 
 		[SerializeField]
 		private bool loadOnStart = true;
@@ -47,7 +49,11 @@ namespace UnityGLTF
 			{
 				await Load();
 			}
+#if WINDOWS_UWP
+			catch (Exception)
+#else
 			catch (HttpRequestException)
+#endif
 			{
 				if (numRetries++ >= RetryCount)
 					throw;
@@ -71,7 +77,15 @@ namespace UnityGLTF
 					// as absolute paths, ignoring the first path passed in. This removes
 					// that character to properly handle a filename written with it.
 					GLTFUri = GLTFUri.TrimStart(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
-					string fullPath = Path.Combine(Application.streamingAssetsPath, GLTFUri);
+					string fullPath;
+					if (AppendStreamingAssets)
+					{
+						fullPath = Path.Combine(Application.streamingAssetsPath, GLTFUri);
+					}
+					else
+					{
+						fullPath = GLTFUri;
+					}
 					string directoryPath = URIHelper.GetDirectoryName(fullPath);
 					loader = new FileLoader(directoryPath);
 					sceneImporter = new GLTFSceneImporter(
@@ -120,6 +134,15 @@ namespace UnityGLTF
 					foreach (Renderer renderer in renderers)
 					{
 						renderer.sharedMaterial.shader = shaderOverride;
+					}
+				}
+
+				if (PlayAnimationOnLoad)
+				{
+					Animation[] animations = sceneImporter.LastLoadedScene.GetComponents<Animation>();
+					foreach (Animation anim in animations)
+					{
+						anim.Play();
 					}
 				}
 			}
