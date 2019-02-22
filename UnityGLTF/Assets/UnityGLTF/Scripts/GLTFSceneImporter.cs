@@ -26,7 +26,82 @@ using WrapMode = UnityEngine.WrapMode;
 
 namespace UnityGLTF
 {
-	public struct MeshConstructionData
+    public class GlobalTextureCacheData
+    {
+        public int refCount = 0;
+        public string key;
+        public Texture2D tex;
+    }
+
+    public class GltfGlobalCache
+    {
+        // Backup for AssetCache
+        Dictionary<string, GlobalTextureCacheData> keyToTex = new Dictionary<string, GlobalTextureCacheData>();
+        // For removing ref count
+        Dictionary<Texture2D, GlobalTextureCacheData> textureToRefCount = new Dictionary<Texture2D, GlobalTextureCacheData>();
+
+        public void Clear()
+        {
+            keyToTex.Clear();
+            textureToRefCount.Clear();
+        }
+
+        public Texture2D GetTexture(string key)
+        {
+            lock(this)
+            {
+                GlobalTextureCacheData data;
+                if (keyToTex.TryGetValue(key, out data))
+                {
+                    data.refCount++;
+                    //Debug.Log("Texture " + key + ": " + data.refCount);
+                    return data.tex;
+                }
+                return null;
+            }
+        }
+
+        public Texture2D Add(string key, Texture2D tex)
+        {
+            lock (this)
+            {
+                GlobalTextureCacheData data;
+                if (!keyToTex.TryGetValue(key, out data))
+                {
+                    data = new GlobalTextureCacheData();
+                    data.tex = tex;
+                    data.key = key;
+                    data.refCount = 1;
+                    keyToTex.Add(key, data);
+                    textureToRefCount.Add(tex, data);
+                    //Debug.Log("Texture " + key + ": " + data.refCount);
+                }
+                return data.tex;
+            }
+        }
+
+        public void RemoveRef(Texture2D tex)
+        {
+            lock (this)
+            {
+                GlobalTextureCacheData data;
+                if (textureToRefCount.TryGetValue(tex, out data))
+                {
+                    data.refCount--;
+                    if (data.refCount == 0)
+                    {
+                        keyToTex.Remove(data.key);
+                        textureToRefCount.Remove(tex);
+                        Object.Destroy(tex);
+                    }
+                    //Debug.Log("Texture " + data.key + ": " + data.refCount);
+                }
+            }
+        }
+    }
+
+
+    public struct MeshConstructionData
 	{
 		public MeshPrimitive Primitive { get; set; }
 		public Dictionary<string, AttributeAccessor> MeshAttributes { get; set; }
@@ -115,7 +190,7 @@ namespace UnityGLTF
 		protected AssetCache _assetCache;
 		protected ILoader _loader;
 		protected bool _isRunning = false;
-
+        public GltfGlobalCache globalCache;
 
 		/// <summary>
 		/// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -317,7 +392,8 @@ namespace UnityGLTF
 			{
 				MaterialCache = _assetCache.MaterialCache,
 				MeshCache = _assetCache.MeshCache,
-				TextureCache = _assetCache.TextureCache
+				TextureCache = _assetCache.TextureCache,
+                globalCache = globalCache
 			};
 		}
 
@@ -436,7 +512,7 @@ namespace UnityGLTF
 			 if (isMultithreaded && _loader.HasSyncLoadMethod)
 			 {
 				Thread loadThread = new Thread(() => _loader.LoadStreamSync(jsonFilePath));
-				loadThread.Priority = ThreadPriority.Highest;
+				loadThread.Priority = System.Threading.ThreadPriority.Highest;
 				loadThread.Start();
 				RunCoroutineSync(WaitUntilEnum(new WaitUntil(() => !loadThread.IsAlive)));
 			 }
@@ -454,7 +530,7 @@ namespace UnityGLTF
 			if (isMultithreaded)
 			{
 				Thread parseJsonThread = new Thread(() => GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition));
-				parseJsonThread.Priority = ThreadPriority.Highest;
+				parseJsonThread.Priority = System.Threading.ThreadPriority.Highest;
 				parseJsonThread.Start();
 				RunCoroutineSync(WaitUntilEnum(new WaitUntil(() => !parseJsonThread.IsAlive)));
 				if (_gltfRoot == null)
@@ -612,45 +688,66 @@ namespace UnityGLTF
 		
 		protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool linear, GLTFImage image, int imageCacheIndex)
 		{
-			Texture2D texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
-            //var texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
-			
-			if (stream is MemoryStream)
-			{
-				using (MemoryStream memoryStream = stream as MemoryStream)
-				{
-                    //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
-                    byte[] memArray = memoryStream.ToArray();
-					if (!texture.LoadImage(memArray, false))
+            Texture2D texture = null;
+            if (image.Uri != null && globalCache != null)
+            {
+                texture = globalCache.GetTexture(image.Uri);
+            }
+
+            if (texture == null)
+            {
+                texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
+                //var texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
+
+                if (stream is MemoryStream)
+                {
+                    using (MemoryStream memoryStream = stream as MemoryStream)
                     {
-			            texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
-                        texture.LoadImage(memArray, false);
+                        //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
+                        byte[] memArray = memoryStream.ToArray();
+                        if (!texture.LoadImage(memArray, false))
+                        {
+                            texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
+                            texture.LoadImage(memArray, false);
+                        }
+
+                    }
+                }
+                else
+                {
+                    byte[] buffer = new byte[stream.Length];
+
+                    // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
+                    using (stream)
+                    {
+                        if (stream.Length > int.MaxValue)
+                        {
+                            throw new Exception("Stream is larger than can be copied into byte array");
+                        }
+                        stream.Read(buffer, 0, (int)stream.Length);
                     }
 
-				}
-			}
-			else
-			{
-				byte[] buffer = new byte[stream.Length];
+                    await TryYieldOnTimeout();
+                    //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
+                    texture.LoadImage(buffer, false);
+                }
 
-				// todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
-				using (stream)
-				{
-					if (stream.Length > int.MaxValue)
-					{
-						throw new Exception("Stream is larger than can be copied into byte array");
-					}
-					stream.Read(buffer, 0, (int)stream.Length);
-				}
+                await TryYieldOnTimeout();
+                // After we conduct the Apply(), then we can make the texture non-readable and never create a CPU copy
+                texture.Apply(true, markGpuOnly);
 
-				await TryYieldOnTimeout();
-				//	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
-				texture.LoadImage(buffer, false);
-			}
-
-			await TryYieldOnTimeout();
-			// After we conduct the Apply(), then we can make the texture non-readable and never create a CPU copy
-			texture.Apply(true, markGpuOnly);
+                if (image.Uri != null && globalCache != null)
+                {
+                    Object.DontDestroyOnLoad(texture);
+                    texture.name = image.Uri;
+                    var textureActual = globalCache.Add(image.Uri, texture);
+                    if (textureActual != texture)
+                    {
+                        Texture2D.Destroy(texture);
+                        texture = textureActual;
+                    }
+                }
+            }
 
 			_assetCache.ImageCache[imageCacheIndex] = texture;
 		}

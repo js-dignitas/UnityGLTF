@@ -37,6 +37,8 @@ namespace UnityGLTF.Cache
 		/// </summary>
 		public TextureCacheData[] TextureCache { get; set; }
 
+        public GltfGlobalCache globalCache;
+
 		public void IncreaseRefCount()
 		{
 			if (_isDisposed)
@@ -92,7 +94,17 @@ namespace UnityGLTF.Cache
 			{
 				if (TextureCache[i] != null)
 				{
-					TextureCache[i].Unload();
+                    if (globalCache != null)
+                    {
+                        if (TextureCache[i].Texture is Texture2D)
+                        {
+                            globalCache.RemoveRef((Texture2D)TextureCache[i].Texture);
+                        }
+                    }
+                    else
+                    {
+                        TextureCache[i].Unload();
+                    }
 				}
 			}
 

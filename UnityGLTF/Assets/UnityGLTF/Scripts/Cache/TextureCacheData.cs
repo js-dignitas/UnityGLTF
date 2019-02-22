@@ -7,13 +7,17 @@ namespace UnityGLTF.Cache
 	{
 		public GLTFTexture TextureDefinition;
 		public Texture Texture;
+        public bool AutoDestroy = true;
 
 		/// <summary>
 		/// Unloads the textures in this cache.
 		/// </summary>
 		public void Unload()
 		{
-			Object.Destroy(Texture);
+            if (AutoDestroy)
+            {
+                Object.Destroy(Texture);
+            }
 		}
 	}
 }
