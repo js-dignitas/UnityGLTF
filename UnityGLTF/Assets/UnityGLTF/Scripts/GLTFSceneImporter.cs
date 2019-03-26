@@ -46,6 +46,10 @@ namespace UnityGLTF
             textureToRefCount.Clear();
         }
 
+        public bool Contains(string key)
+        {
+            return keyToTex.ContainsKey(key);
+        }
         public Texture2D GetTexture(string key)
         {
             lock(this)
@@ -475,13 +479,19 @@ namespace UnityGLTF
 				{
                     try
                     {
-                        await _loader.LoadStream(image.Uri);
+                        if (globalCache == null || !globalCache.Contains(image.Uri))
+                        {
+                            await _loader.LoadStream(image.Uri);
+                        }
                     }
                     catch(Exception e)
                     {
                         Debug.LogError(e);
                     }
-					_assetCache.ImageStreamCache[sourceId] = _loader.LoadedStream;
+                    if (globalCache == null || !globalCache.Contains(image.Uri))
+                    {
+                        _assetCache.ImageStreamCache[sourceId] = _loader.LoadedStream;
+                    }
 				}
 				else if (image.Uri == null && image.BufferView != null && _assetCache.BufferCache[image.BufferView.Value.Buffer.Id] == null)
 				{
@@ -679,7 +689,7 @@ namespace UnityGLTF
 				}
 
 				await TryYieldOnTimeout();
-                if (stream != null)
+                if (globalCache != null || stream != null)
                 {
                     await ConstructUnityTexture(stream, markGpuOnly, linear, image, imageCacheIndex);
                 }
@@ -696,11 +706,11 @@ namespace UnityGLTF
 
             if (texture == null)
             {
-                texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
                 //var texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
 
                 if (stream is MemoryStream)
                 {
+                    texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
                     using (MemoryStream memoryStream = stream as MemoryStream)
                     {
                         //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
@@ -715,21 +725,61 @@ namespace UnityGLTF
                 }
                 else
                 {
-                    byte[] buffer = new byte[stream.Length];
-
-                    // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
-                    using (stream)
+#if TRY_ASYNC_TEXTURE_LOADING
+                    if (globalCache != null)
                     {
-                        if (stream.Length > int.MaxValue)
+                        // JDS special code to use UnityWebRequestTexture and put in globalCache
+                        Uri uri;
+                        if (_loader is WebRequestLoader)
                         {
-                            throw new Exception("Stream is larger than can be copied into byte array");
+                            uri = ((WebRequestLoader)_loader).FullPath(image.Uri);
                         }
-                        stream.Read(buffer, 0, (int)stream.Length);
+                        else
+                        {
+                            uri = new Uri(image.Uri);
+                        }
+                        using (var webRequest = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(uri, markGpuOnly))
+                        {
+                            Debug.Log("Request " + uri);
+                            var op = webRequest.SendWebRequest();
+                            while (!op.isDone)
+                            {
+                                await _asyncCoroutineHelper.RunAsTask(EmptyYieldEnum(), nameof(EmptyYieldEnum));
+                            }
+                            if (webRequest.isHttpError || webRequest.isNetworkError)
+                            {
+                                Debug.LogError(webRequest.error);
+                            }
+                            else
+                            {
+                                texture = UnityEngine.Networking.DownloadHandlerTexture.GetContent(webRequest);
+                                if (texture == null)
+                                {
+                                    Debug.LogError("Error get texture from webrequest");
+                                }
+                            }
+                        }
                     }
+                    else
+#endif
+                    {
+                        texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
+                        byte[] buffer = new byte[stream.Length];
 
-                    await TryYieldOnTimeout();
-                    //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
-                    texture.LoadImage(buffer, false);
+                        // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
+                        using (stream)
+                        {
+                            if (stream.Length > int.MaxValue)
+                            {
+                                throw new Exception("Stream is larger than can be copied into byte array");
+                            }
+                            stream.Read(buffer, 0, (int)stream.Length);
+                        }
+
+                        await TryYieldOnTimeout();
+                        //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
+                        texture.LoadImage(buffer, false);
+                    }
                 }
 
                 await TryYieldOnTimeout();
@@ -1110,7 +1160,7 @@ namespace UnityGLTF
 				curve.MoveKey(i, key);
 			}
 		}
-		#endregion
+#endregion
 
 		protected virtual async Task ConstructScene(GLTFScene scene, bool showSceneObj)
 		{

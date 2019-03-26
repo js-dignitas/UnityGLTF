@@ -33,6 +33,11 @@ namespace UnityGLTF.Loader
 			baseAddress = new Uri(rootUri);
 		}
 
+        public Uri FullPath(string file)
+        {
+            return new Uri(baseAddress, file);
+        }
+
 		public async Task LoadStream(string gltfFilePath)
 		{
 			if (gltfFilePath == null)
