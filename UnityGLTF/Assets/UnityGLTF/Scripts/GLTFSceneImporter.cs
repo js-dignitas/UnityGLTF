@@ -477,18 +477,24 @@ namespace UnityGLTF
 				// we only load the streams if not a base64 uri, meaning the data is in the uri
 				if (image.Uri != null && !URIHelper.IsBase64Uri(image.Uri))
 				{
+                    bool inGlobalCache = (globalCache != null && globalCache.Contains(image.Uri));
                     try
                     {
-                        if (globalCache == null || !globalCache.Contains(image.Uri))
+                        if (!inGlobalCache)
                         {
                             await _loader.LoadStream(image.Uri);
+                        }
+                        else
+                        {
+                            // increase ref count
+                            globalCache.GetTexture(image.Uri);
                         }
                     }
                     catch(Exception e)
                     {
                         Debug.LogError(e);
                     }
-                    if (globalCache == null || !globalCache.Contains(image.Uri))
+                    if (!inGlobalCache)
                     {
                         _assetCache.ImageStreamCache[sourceId] = _loader.LoadedStream;
                     }
@@ -702,6 +708,11 @@ namespace UnityGLTF
             if (image.Uri != null && globalCache != null)
             {
                 texture = globalCache.GetTexture(image.Uri);
+                if (texture != null && stream == null)
+                {
+                    // Remove the ref count created earlier to hold the texture in the cache before it got to this code
+                    globalCache.RemoveRef(texture);
+                }
             }
 
             if (texture == null)
@@ -1165,6 +1176,7 @@ namespace UnityGLTF
 		protected virtual async Task ConstructScene(GLTFScene scene, bool showSceneObj)
 		{
 			var sceneObj = new GameObject(string.IsNullOrEmpty(scene.Name) ? ("GLTFScene") : scene.Name);
+            sceneObj.hideFlags = HideFlags.DontSaveInEditor;
 			sceneObj.SetActive(showSceneObj);
 
 			Transform[] nodeTransforms = new Transform[scene.Nodes.Count];
@@ -1210,6 +1222,7 @@ namespace UnityGLTF
 			var nodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode" + nodeIndex) : node.Name);
 			// If we're creating a really large node, we need it to not be visible in partial stages. So we hide it while we create it
 			nodeObj.SetActive(false);
+            nodeObj.hideFlags = HideFlags.DontSaveInEditor;
 
 			Vector3 position;
 			Quaternion rotation;
@@ -1259,6 +1272,7 @@ namespace UnityGLTF
 					List<double> lodCoverage = lodsextension.GetLODCoverage(node);
 
 					var lodGroupNodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode_LODGroup" + nodeIndex) : node.Name);
+                    lodGroupNodeObj.hideFlags = HideFlags.DontSaveInEditor;
 					lodGroupNodeObj.SetActive(false);
 					nodeObj.transform.SetParent(lodGroupNodeObj.transform, false);
 					MeshRenderer[] childRenders = nodeObj.GetComponentsInChildren<MeshRenderer>();
@@ -1405,6 +1419,7 @@ namespace UnityGLTF
                 else
                 {
                     primitiveObj = new GameObject("Primitive");
+                    primitiveObj.hideFlags = HideFlags.DontSaveInEditor;
                 }
 
                 MaterialCacheData materialCacheData =
