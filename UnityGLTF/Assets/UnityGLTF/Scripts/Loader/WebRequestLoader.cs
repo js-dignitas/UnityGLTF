@@ -98,8 +98,6 @@ namespace UnityGLTF.Loader
             }
             response.EnsureSuccessStatusCode();
 
-            UnityEngine.Debug.Log("Downloaded " + response.RequestMessage.RequestUri);
-
 			// HACK: Download the whole file before returning the stream
 			// Ideally the parsers would wait for data to be available, but they don't.
 			LoadedStream = new MemoryStream((int?)response.Content.Headers.ContentLength ?? 5000);
