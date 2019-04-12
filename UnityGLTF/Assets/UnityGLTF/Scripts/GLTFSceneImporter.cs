@@ -721,15 +721,23 @@ namespace UnityGLTF
 
                 if (stream is MemoryStream)
                 {
-                    texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
                     using (MemoryStream memoryStream = stream as MemoryStream)
                     {
                         //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
                         byte[] memArray = memoryStream.ToArray();
-                        if (!texture.LoadImage(memArray, false))
+
+                        if (IsDDS(memArray))
                         {
-                            texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
-                            texture.LoadImage(memArray, false);
+                            texture = LoadTextureDXT(memArray, TextureFormat.DXT1);
+                        }
+                        if (texture == null)
+                        {
+                            texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
+                            if (!texture.LoadImage(memArray, false))
+                            {
+                                texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, linear);
+                                texture.LoadImage(memArray, false);
+                            }
                         }
 
                     }
@@ -774,7 +782,6 @@ namespace UnityGLTF
                     else
 #endif
                     {
-                        texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
                         byte[] buffer = new byte[stream.Length];
 
                         // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
@@ -789,7 +796,15 @@ namespace UnityGLTF
 
                         await TryYieldOnTimeout();
                         //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
-                        texture.LoadImage(buffer, false);
+                        if (IsDDS(buffer))
+                        {
+                            texture = LoadTextureDXT(buffer, TextureFormat.DXT1);
+                        }
+                        if (texture == null)
+                        {
+                            texture = new Texture2D(0, 0, TextureFormat.DXT1, true, linear);
+                            texture.LoadImage(buffer, false);
+                        }
                     }
                 }
 
@@ -2057,5 +2072,32 @@ namespace UnityGLTF
 			_assetCache.Dispose();
 			_assetCache = null;
 		}
-	}
+
+        private static bool IsDDS(byte[] bytes)
+        {
+            return bytes[4] == 124;
+
+        }
+        private static Texture2D LoadTextureDXT(byte[] ddsBytes, TextureFormat textureFormat)
+        {
+            if (textureFormat != TextureFormat.DXT1 && textureFormat != TextureFormat.DXT5)
+                throw new Exception("Invalid TextureFormat. Only DXT1 and DXT5 formats are supported by this method.");
+
+            if (!IsDDS(ddsBytes))
+                throw new Exception("Invalid DDS DXTn texture. Unable to read");  //this header byte should be 124 for DDS image files
+
+            int height = ddsBytes[13] * 256 + ddsBytes[12];
+            int width = ddsBytes[17] * 256 + ddsBytes[16];
+
+            int DDS_HEADER_SIZE = 128;
+            byte[] dxtBytes = new byte[ddsBytes.Length - DDS_HEADER_SIZE];
+            Buffer.BlockCopy(ddsBytes, DDS_HEADER_SIZE, dxtBytes, 0, ddsBytes.Length - DDS_HEADER_SIZE);
+
+            Texture2D texture = new Texture2D(width, height, textureFormat, true);
+            texture.LoadRawTextureData(dxtBytes);
+            texture.Apply();
+
+            return (texture);
+        }
+    }
 }

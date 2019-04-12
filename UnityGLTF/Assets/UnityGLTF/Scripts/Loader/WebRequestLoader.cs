@@ -25,6 +25,8 @@ namespace UnityGLTF.Loader
 		private readonly HttpClient httpClient = new HttpClient();
 		private Uri baseAddress;
 
+        bool tryDDS = true;
+
 		public WebRequestLoader(string rootUri)
 		{
 #if !WINDOWS_UWP
@@ -45,6 +47,13 @@ namespace UnityGLTF.Loader
 				throw new ArgumentNullException(nameof(gltfFilePath));
 			}
 
+            string gltfFilePathUpper = gltfFilePath.ToUpper();
+            bool isPngOrJpg = gltfFilePathUpper.EndsWith("PNG") || gltfFilePathUpper.EndsWith("JPG");
+            string updatedPath = gltfFilePath;
+            if (isPngOrJpg && tryDDS)
+            {
+                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".DDS";
+            }
 			HttpResponseMessage response;
 			try
 			{
@@ -52,7 +61,7 @@ namespace UnityGLTF.Loader
 				response = await httpClient.GetAsync(new Uri(baseAddress, gltfFilePath));
 #else
 				var tokenSource = new CancellationTokenSource(30000);
-				response = await httpClient.GetAsync(new Uri(baseAddress, gltfFilePath), tokenSource.Token);
+				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath), tokenSource.Token);
 #endif
 			}
 			catch (TaskCanceledException e)
@@ -64,7 +73,32 @@ namespace UnityGLTF.Loader
 #endif
 			}
 
-			response.EnsureSuccessStatusCode();
+			if(!response.IsSuccessStatusCode && isPngOrJpg && tryDDS)
+            {
+                UnityEngine.Debug.Log("Tried DDS for " +  updatedPath + ", but did not find any. So not trying any more");
+                tryDDS = false;
+                try
+                {
+#if WINDOWS_UWP
+				response = await httpClient.GetAsync(new Uri(baseAddress, gltfFilePath));
+#else
+                    var tokenSource = new CancellationTokenSource(30000);
+                    response = await httpClient.GetAsync(new Uri(baseAddress, gltfFilePath), tokenSource.Token);
+#endif
+                }
+                catch (TaskCanceledException e)
+                {
+#if WINDOWS_UWP
+				throw new Exception($"Connection timeout: {baseAddress}");
+#else
+                    throw new HttpRequestException($"Connection timeout: {baseAddress}");
+#endif
+                }
+
+            }
+            response.EnsureSuccessStatusCode();
+
+            UnityEngine.Debug.Log("Downloaded " + response.RequestMessage.RequestUri);
 
 			// HACK: Download the whole file before returning the stream
 			// Ideally the parsers would wait for data to be available, but they don't.
