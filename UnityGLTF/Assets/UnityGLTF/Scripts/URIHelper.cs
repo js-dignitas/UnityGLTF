@@ -53,6 +53,7 @@ public static class URIHelper
 		}
 	}
 
+    static Regex regex = new Regex(Base64StringInitializer);
 	/// <summary>
 	/// Returns whether the input uri is base64 encoded
 	/// </summary>
@@ -60,7 +61,6 @@ public static class URIHelper
 	/// <returns>Whether the uri is base64</returns>
 	public static bool IsBase64Uri(string uri)
 	{
-		Regex regex = new Regex(Base64StringInitializer);
 		Match match = regex.Match(uri);
 		return match.Success;
 	}
