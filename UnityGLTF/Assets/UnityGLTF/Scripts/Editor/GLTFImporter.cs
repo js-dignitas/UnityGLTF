@@ -282,7 +282,7 @@ namespace UnityGLTF
                                         }
                                         else
                                         {
-                                            Debug.LogWarning(string.Format("GLTFImporter: Unable to import texture at path: {0}", texPath));
+                                            Debug.LogWarning("GLTFImporter: Unable to import texture from path reference");
                                         }
                                     }
                                 };
@@ -340,9 +340,8 @@ namespace UnityGLTF
 				GLTFRoot gLTFRoot;
 				GLTFParser.ParseJson(stream, out gLTFRoot);
 				var loader = new GLTFSceneImporter(gLTFRoot, fileLoader, null, stream);
-				loader.BudgetPerFrameInMilliseconds = float.MaxValue;
 				loader.MaximumLod = _maximumLod;
-				loader.isMultithreaded = true;
+				loader.IsMultithreaded = true;
 
 				loader.LoadSceneAsync().Wait();
 				return loader.LastLoadedScene;

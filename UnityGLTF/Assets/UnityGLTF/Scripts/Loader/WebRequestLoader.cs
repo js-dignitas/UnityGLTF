@@ -9,7 +9,6 @@ using Windows.Storage.Streams;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using System.Net.Security;
 #endif
 using System.Threading;
 using System.Threading.Tasks;
@@ -64,12 +63,12 @@ namespace UnityGLTF.Loader
 				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath), tokenSource.Token);
 #endif
 			}
-			catch (TaskCanceledException e)
+			catch (TaskCanceledException)
 			{
 #if WINDOWS_UWP
-				throw new Exception($"Connection timeout: {baseAddress}");
+				throw new Exception("Connection timeout");
 #else
-				throw new HttpRequestException($"Connection timeout: {baseAddress}");
+				throw new HttpRequestException("Connection timeout");
 #endif
 			}
 
@@ -102,7 +101,7 @@ namespace UnityGLTF.Loader
 			// Ideally the parsers would wait for data to be available, but they don't.
 			LoadedStream = new MemoryStream((int?)response.Content.Headers.ContentLength ?? 5000);
 #if WINDOWS_UWP
-			await response.Content.WriteToStreamAsync((IOutputStream)LoadedStream);
+			await response.Content.WriteToStreamAsync(LoadedStream.AsOutputStream());
 #else
 			await response.Content.CopyToAsync(LoadedStream);
 #endif
