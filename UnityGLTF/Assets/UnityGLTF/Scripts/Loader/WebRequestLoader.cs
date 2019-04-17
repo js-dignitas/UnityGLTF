@@ -24,7 +24,13 @@ namespace UnityGLTF.Loader
 		private readonly HttpClient httpClient = new HttpClient();
 		private Uri baseAddress;
 
-        bool tryDDS = true;
+        bool tryDDS = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.DXT1);
+
+        public bool TryDDS
+        {
+            set { tryDDS = value; }
+            get { return tryDDS; }
+        }
 
 		public WebRequestLoader(string rootUri)
 		{
@@ -49,7 +55,7 @@ namespace UnityGLTF.Loader
             string gltfFilePathUpper = gltfFilePath.ToUpper();
             bool isPngOrJpg = gltfFilePathUpper.EndsWith("PNG") || gltfFilePathUpper.EndsWith("JPG");
             string updatedPath = gltfFilePath;
-            if (isPngOrJpg && tryDDS)
+            if (isPngOrJpg && TryDDS)
             {
                 updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".DDS";
             }
@@ -57,9 +63,9 @@ namespace UnityGLTF.Loader
 			try
 			{
 #if WINDOWS_UWP
-				response = await httpClient.GetAsync(new Uri(baseAddress, gltfFilePath));
+				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath));
 #else
-				var tokenSource = new CancellationTokenSource(30000);
+                var tokenSource = new CancellationTokenSource(30000);
 				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath), tokenSource.Token);
 #endif
 			}
@@ -72,10 +78,10 @@ namespace UnityGLTF.Loader
 #endif
 			}
 
-			if(!response.IsSuccessStatusCode && isPngOrJpg && tryDDS)
+			if(!response.IsSuccessStatusCode && isPngOrJpg && TryDDS)
             {
                 UnityEngine.Debug.Log("Tried DDS for " +  updatedPath + ", but did not find any. So not trying any more");
-                tryDDS = false;
+                TryDDS = false;
                 try
                 {
 #if WINDOWS_UWP

@@ -152,6 +152,8 @@ namespace UnityGLTF
 
 		private bool _isMultithreaded;
 
+        public float downloadingTime = 0;
+        public float processingTime = 0;
 		/// <summary>
 		/// Use Multithreading or not.
 		/// In editor, this is always false. This is to prevent a freeze in editor (noticed in Unity versions 2017.x and 2018.x)
@@ -515,7 +517,9 @@ namespace UnityGLTF
                     {
                         if (!inGlobalCache)
                         {
+                            float startTime = Time.time;
                             await _loader.LoadStream(image.Uri);
+                            this.downloadingTime += Time.time - startTime;
                         }
                         else
                         {
@@ -552,6 +556,7 @@ namespace UnityGLTF
 
 		private async Task LoadJson(string jsonFilePath)
 		{
+            float startTime = Time.time;
 #if !WINDOWS_UWP
 			 if (IsMultithreaded && _loader.HasSyncLoadMethod)
 			 {
@@ -569,6 +574,8 @@ namespace UnityGLTF
 
 			_gltfStream.Stream = _loader.LoadedStream;
 			_gltfStream.StartPosition = 0;
+
+            this.downloadingTime += Time.time - startTime;
 
 #if !WINDOWS_UWP
 			if (IsMultithreaded)
@@ -652,7 +659,9 @@ namespace UnityGLTF
 				throw new GLTFLoadException("No default scene in gltf file.");
 			}
 
+            float startTime = Time.time;
 			await ConstructScene(scene, showSceneObj);
+            this.processingTime += Time.time - startTime;
 
 			if (SceneParent != null)
 			{
@@ -681,7 +690,9 @@ namespace UnityGLTF
 				}
 				else
 				{
+                    float startTime = Time.time;
 					await _loader.LoadStream(buffer.Uri);
+                    this.downloadingTime += Time.time - startTime;
 					bufferDataStream = _loader.LoadedStream;
 				}
 
