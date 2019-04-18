@@ -811,6 +811,18 @@ namespace UnityGLTF
                         texture.LoadImage(buffer, markGpuOnly);
                     }
                 }
+
+                if (image.Uri != null && globalCache != null)
+                {
+                    Object.DontDestroyOnLoad(texture);
+                    texture.name = image.Uri;
+                    var textureActual = globalCache.Add(image.Uri, texture);
+                    if (textureActual != texture)
+                    {
+                        Texture2D.Destroy(texture);
+                        texture = textureActual;
+                    }
+                }
             }
 
             _assetCache.ImageCache[imageCacheIndex] = texture;
@@ -1677,7 +1689,7 @@ namespace UnityGLTF
 				if (specGlossDef.DiffuseTexture != null)
 				{
 					var textureId = specGlossDef.DiffuseTexture.Index;
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+					//tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
 				}
 
 				if (specGlossDef.SpecularGlossinessTexture != null)
