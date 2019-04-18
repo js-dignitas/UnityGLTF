@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -40,7 +41,9 @@ namespace UnityGLTF
 		{
 			if (Time.realtimeSinceStartup > _timeout)
 			{
-				await RunAsTask(EmptyYieldEnum(), nameof(EmptyYieldEnum));
+                int frame = Time.frameCount;
+                //await RunAsTask(EmptyYieldEnum(), nameof(EmptyYieldEnum));
+                await Task.Delay(TimeSpan.FromMilliseconds(1));
 			}
 		}
 

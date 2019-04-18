@@ -154,6 +154,7 @@ namespace UnityGLTF
 
         public float downloadingTime = 0;
         public float processingTime = 0;
+
 		/// <summary>
 		/// Use Multithreading or not.
 		/// In editor, this is always false. This is to prevent a freeze in editor (noticed in Unity versions 2017.x and 2018.x)
@@ -666,6 +667,7 @@ namespace UnityGLTF
 			if (SceneParent != null)
 			{
 				CreatedObject.transform.SetParent(SceneParent, false);
+                CreatedObject.SetActive(true);
 			}
 
 			_lastLoadedScene = CreatedObject;
@@ -733,7 +735,14 @@ namespace UnityGLTF
 					}
 				}
 
-				if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                {
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
+                }
                 if (globalCache != null || stream != null)
                 {
 				await ConstructUnityTexture(stream, markGpuOnly, isLinear, image, imageCacheIndex);
@@ -784,7 +793,12 @@ namespace UnityGLTF
                     }
                     stream.Read(buffer, 0, (int)stream.Length);
 
+                    int frame = Time.frameCount;
                     if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
 
                     if (IsDDS(buffer))
                     {
@@ -1187,7 +1201,8 @@ namespace UnityGLTF
 		protected virtual async Task ConstructScene(GLTFScene scene, bool showSceneObj)
 		{
 			var sceneObj = new GameObject(string.IsNullOrEmpty(scene.Name) ? ("GLTFScene") : scene.Name);
-            sceneObj.hideFlags = HideFlags.DontSaveInEditor;
+            sceneObj.transform.SetParent(SceneParent,false);
+            //sceneObj.hideFlags = HideFlags.DontSaveInEditor;
 			sceneObj.SetActive(showSceneObj);
 
 			Transform[] nodeTransforms = new Transform[scene.Nodes.Count];
@@ -1197,6 +1212,7 @@ namespace UnityGLTF
 				await _LoadNode(node.Id);
 				GameObject nodeObj = _assetCache.NodeCache[node.Id];
 				nodeObj.transform.SetParent(sceneObj.transform, false);
+                nodeObj.SetActive(true);
 				nodeTransforms[i] = nodeObj.transform;
 			}
 
@@ -1231,9 +1247,10 @@ namespace UnityGLTF
 			}
 
 			var nodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode" + nodeIndex) : node.Name);
+            nodeObj.transform.SetParent(SceneParent,false);
 			// If we're creating a really large node, we need it to not be visible in partial stages. So we hide it while we create it
 			nodeObj.SetActive(false);
-            nodeObj.hideFlags = HideFlags.DontSaveInEditor;
+            //nodeObj.hideFlags = HideFlags.DontSaveInEditor;
 
 			Vector3 position;
 			Quaternion rotation;
@@ -1263,10 +1280,10 @@ namespace UnityGLTF
 					await ConstructNode(child.Value, child.Id);
 					GameObject childObj = _assetCache.NodeCache[child.Id];
 					childObj.transform.SetParent(nodeObj.transform, false);
+                    childObj.SetActive(true);
 				}
 			}
-
-			nodeObj.SetActive(true);
+			nodeObj.SetActive(false);
 			_assetCache.NodeCache[nodeIndex] = nodeObj;
 
 			const string msft_LODExtName = MSFT_LODExtensionFactory.EXTENSION_NAME;
@@ -1289,9 +1306,10 @@ namespace UnityGLTF
 					List<double> lodCoverage = lodsextension.GetLODCoverage(node);
 
 					var lodGroupNodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode_LODGroup" + nodeIndex) : node.Name);
-                    lodGroupNodeObj.hideFlags = HideFlags.DontSaveInEditor;
+                    //lodGroupNodeObj.hideFlags = HideFlags.DontSaveInEditor;
 					lodGroupNodeObj.SetActive(false);
 					nodeObj.transform.SetParent(lodGroupNodeObj.transform, false);
+                    nodeObj.SetActive(true);
 					MeshRenderer[] childRenders = nodeObj.GetComponentsInChildren<MeshRenderer>();
 					lods[0] = new LOD(GetLodCoverage(lodCoverage, 0), childRenders);
 
@@ -1443,7 +1461,9 @@ namespace UnityGLTF
                 else
                 {
                     primitiveObj = new GameObject("Primitive");
-                    primitiveObj.hideFlags = HideFlags.DontSaveInEditor;
+                    primitiveObj.transform.SetParent(SceneParent,false);
+                    primitiveObj.SetActive(false);
+                    //primitiveObj.hideFlags = HideFlags.DontSaveInEditor;
                 }
 
                 MaterialCacheData materialCacheData =
@@ -1670,41 +1690,118 @@ namespace UnityGLTF
 			return Task.WhenAll(tasks);
 		}
 
-		protected async Task ConstructUnityMesh(MeshConstructionData meshConstructionData, int meshId, int primitiveIndex, UnityMeshData unityMeshData)
-		{
-			MeshPrimitive primitive = meshConstructionData.Primitive;
-			int vertexCount = (int)primitive.Attributes[SemanticProperties.POSITION].Value.Count;
-			bool hasNormals = unityMeshData.Normals != null;
+        protected async Task ConstructUnityMesh(MeshConstructionData meshConstructionData, int meshId, int primitiveIndex, UnityMeshData unityMeshData)
+        {
+            MeshPrimitive primitive = meshConstructionData.Primitive;
+            int vertexCount = (int)primitive.Attributes[SemanticProperties.POSITION].Value.Count;
+            bool hasNormals = unityMeshData.Normals != null;
 
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-			Mesh mesh = new Mesh
-			{
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
+            Mesh mesh = new Mesh
+            {
 
 #if UNITY_2017_3_OR_NEWER
-				indexFormat = vertexCount > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16,
+                indexFormat = vertexCount > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16,
 #endif
-			};
+            };
 
-			mesh.vertices = unityMeshData.Vertices;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            mesh.vertices = unityMeshData.Vertices;
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.normals = unityMeshData.Normals;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.uv = unityMeshData.Uv1;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.uv2 = unityMeshData.Uv2;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.uv3 = unityMeshData.Uv3;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.uv4 = unityMeshData.Uv4;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    ////Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.colors = unityMeshData.Colors;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    ////Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.triangles = unityMeshData.Triangles;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.tangents = unityMeshData.Tangents;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 			mesh.boneWeights = unityMeshData.BoneWeights;
-			if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+            {
+                int frame = Time.frameCount;
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                if (Time.frameCount != frame)
+                {
+                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                }
+            }
 
 			if (!hasNormals)
 			{
@@ -1762,36 +1859,40 @@ namespace UnityGLTF
 				{
 					TextureId textureId = pbr.BaseColorTexture.Index;
 					await ConstructTexture(textureId.Value, textureId.Id, !KeepCPUCopyOfTexture, false);
-					mrMapper.BaseColorTexture = _assetCache.TextureCache[textureId.Id].Texture;
-					mrMapper.BaseColorTexCoord = pbr.BaseColorTexture.TexCoord;
+                    {
+                        mrMapper.BaseColorTexture = _assetCache.TextureCache[textureId.Id].Texture;
+                        mrMapper.BaseColorTexCoord = pbr.BaseColorTexture.TexCoord;
 
-					var ext = GetTextureTransform(pbr.BaseColorTexture);
-					if(ext != null)
-					{
-						mrMapper.BaseColorXOffset = ext.Offset.ToUnityVector2Raw();
-						mrMapper.BaseColorXRotation = ext.Rotation;
-						mrMapper.BaseColorXScale = ext.Scale.ToUnityVector2Raw();
-						mrMapper.BaseColorXTexCoord = ext.TexCoord;
-					}
-				}
+                        var ext = GetTextureTransform(pbr.BaseColorTexture);
+                        if (ext != null)
+                        {
+                            mrMapper.BaseColorXOffset = ext.Offset.ToUnityVector2Raw();
+                            mrMapper.BaseColorXRotation = ext.Rotation;
+                            mrMapper.BaseColorXScale = ext.Scale.ToUnityVector2Raw();
+                            mrMapper.BaseColorXTexCoord = ext.TexCoord;
+                        }
+                    }
+                }
 
-				mrMapper.MetallicFactor = pbr.MetallicFactor;
+                mrMapper.MetallicFactor = pbr.MetallicFactor;
 
 				if (pbr.MetallicRoughnessTexture != null)
 				{
 					TextureId textureId = pbr.MetallicRoughnessTexture.Index;
 					await ConstructTexture(textureId.Value, textureId.Id, !KeepCPUCopyOfTexture, true);
-					mrMapper.MetallicRoughnessTexture = _assetCache.TextureCache[textureId.Id].Texture;
-					mrMapper.MetallicRoughnessTexCoord = pbr.MetallicRoughnessTexture.TexCoord;
+                    {
+                        mrMapper.MetallicRoughnessTexture = _assetCache.TextureCache[textureId.Id].Texture;
+                        mrMapper.MetallicRoughnessTexCoord = pbr.MetallicRoughnessTexture.TexCoord;
 
-					var ext = GetTextureTransform(pbr.MetallicRoughnessTexture);
-					if (ext != null)
-					{
-						mrMapper.MetallicRoughnessXOffset = ext.Offset.ToUnityVector2Raw();
-						mrMapper.MetallicRoughnessXRotation = ext.Rotation;
-						mrMapper.MetallicRoughnessXScale = ext.Scale.ToUnityVector2Raw();
-						mrMapper.MetallicRoughnessXTexCoord = ext.TexCoord;
-					}
+                        var ext = GetTextureTransform(pbr.MetallicRoughnessTexture);
+                        if (ext != null)
+                        {
+                            mrMapper.MetallicRoughnessXOffset = ext.Offset.ToUnityVector2Raw();
+                            mrMapper.MetallicRoughnessXRotation = ext.Rotation;
+                            mrMapper.MetallicRoughnessXScale = ext.Scale.ToUnityVector2Raw();
+                            mrMapper.MetallicRoughnessXTexCoord = ext.TexCoord;
+                        }
+                    }
 				}
 
 				mrMapper.RoughnessFactor = pbr.RoughnessFactor;
