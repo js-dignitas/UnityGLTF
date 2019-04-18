@@ -376,11 +376,15 @@ namespace UnityGLTF.Extensions
 		/// <param name="coordinateSpaceCoordinateScale">The coordinate space to move into</param>
 		public static void ConvertVector3CoordinateSpace(ref AttributeAccessor attributeAccessor, GLTF.Math.Vector3 coordinateSpaceCoordinateScale)
 		{
-			for (int i = 0; i < attributeAccessor.AccessorContent.AsVertices.Length; i++)
+            var vertices = attributeAccessor.AccessorContent.AsVertices;
+
+            for (int i = 0; i < vertices.Length; i++)
 			{
-				attributeAccessor.AccessorContent.AsVertices[i].X *= coordinateSpaceCoordinateScale.X;
-				attributeAccessor.AccessorContent.AsVertices[i].Y *= coordinateSpaceCoordinateScale.Y;
-				attributeAccessor.AccessorContent.AsVertices[i].Z *= coordinateSpaceCoordinateScale.Z;
+                var vertex = vertices[i];
+                vertex.X *= coordinateSpaceCoordinateScale.X;
+                vertex.Y *= coordinateSpaceCoordinateScale.Y;
+                vertex.Z *= coordinateSpaceCoordinateScale.Z;
+                vertices[i] = vertex;
 			}
 		}
 
