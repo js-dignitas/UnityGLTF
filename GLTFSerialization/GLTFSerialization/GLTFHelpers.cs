@@ -254,8 +254,10 @@ namespace GLTF
 				attributeAccessor.AccessorId.Value.AsNormalArray(ref resultArray, bufferViewCache, offset);
 				attributeAccessor.AccessorContent = resultArray;
 			}
+            bool hasTex = false;
 			if (attributes.ContainsKey(SemanticProperties.TexCoord(0)))
 			{
+                hasTex = true;
 				var attributeAccessor = attributes[SemanticProperties.TexCoord(0)];
 				NumericArray resultArray = attributeAccessor.AccessorContent;
 				uint offset = LoadBufferView(attributeAccessor, out byte[] bufferViewCache);
@@ -264,6 +266,7 @@ namespace GLTF
 			}
 			if (attributes.ContainsKey(SemanticProperties.TexCoord(1)))
 			{
+                hasTex = true;
 				var attributeAccessor = attributes[SemanticProperties.TexCoord(1)];
 				NumericArray resultArray = attributeAccessor.AccessorContent;
 				uint offset = LoadBufferView(attributeAccessor, out byte[] bufferViewCache);
@@ -272,6 +275,7 @@ namespace GLTF
 			}
 			if (attributes.ContainsKey(SemanticProperties.TexCoord(2)))
 			{
+                hasTex = true;
 				var attributeAccessor = attributes[SemanticProperties.TexCoord(2)];
 				NumericArray resultArray = attributeAccessor.AccessorContent;
 				uint offset = LoadBufferView(attributeAccessor, out byte[] bufferViewCache);
@@ -280,13 +284,14 @@ namespace GLTF
 			}
 			if (attributes.ContainsKey(SemanticProperties.TexCoord(3)))
 			{
+                hasTex = true;
 				var attributeAccessor = attributes[SemanticProperties.TexCoord(3)];
 				NumericArray resultArray = attributeAccessor.AccessorContent;
 				uint offset = LoadBufferView(attributeAccessor, out byte[] bufferViewCache);
 				attributeAccessor.AccessorId.Value.AsTexcoordArray(ref resultArray, bufferViewCache, offset);
 				attributeAccessor.AccessorContent = resultArray;
 			}
-			if (attributes.ContainsKey(SemanticProperties.Color(0)))
+			if (attributes.ContainsKey(SemanticProperties.Color(0)) && !hasTex)
 			{
 				var attributeAccessor = attributes[SemanticProperties.Color(0)];
 				NumericArray resultArray = attributeAccessor.AccessorContent;

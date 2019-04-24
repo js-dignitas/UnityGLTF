@@ -28,7 +28,22 @@ namespace GLTF.Math
 			A = other.A;
 		}
 
-		public bool Equals(Color other)
+        public void SetValues(float r, float g, float b, float a = 1.0f)
+        {
+            R = r;
+            G = g;
+            B = b;
+            A = a;
+        }
+        public void SetValues(Vector3 v, float a = 1.0f)
+        {
+            R = v.X;
+            G = v.Y;
+            B = v.Z;
+            A = a; 
+        }
+
+        public bool Equals(Color other)
 		{
 			return R.Equals(other.R) && G.Equals(other.G) && B.Equals(other.B) && A.Equals(other.A);
 		}
