@@ -24,6 +24,11 @@ namespace UnityGLTF.Loader
 		private readonly HttpClient httpClient = new HttpClient();
 		private Uri baseAddress;
 
+        public string BaseAddress
+        {
+            set { baseAddress = new Uri(value); }
+            get { return baseAddress.ToString(); }
+        }
         bool tryDDS = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.DXT1);
 
         public bool TryDDS
@@ -37,7 +42,7 @@ namespace UnityGLTF.Loader
 #if !WINDOWS_UWP
 			ServicePointManager.ServerCertificateValidationCallback = ValidateServerCertificate;
 #endif
-			baseAddress = new Uri(rootUri);
+            BaseAddress = rootUri;
 		}
 
         public Uri FullPath(string file)
