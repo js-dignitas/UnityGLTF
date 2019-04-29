@@ -154,6 +154,7 @@ namespace UnityGLTF
 
         public float downloadingTime = 0;
         public float processingTime = 0;
+        public float activateTime = 0;
 
 		/// <summary>
 		/// Use Multithreading or not.
@@ -231,6 +232,7 @@ namespace UnityGLTF
 		protected ILoader _loader;
 		protected bool _isRunning = false;
         public GltfGlobalCache globalCache;
+        public bool startCollidersEnabled = true;
 
 		/// <summary>
 		/// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -1508,28 +1510,44 @@ namespace UnityGLTF
 				MeshFilter meshFilter = primitiveObj.AddComponent<MeshFilter>();
 				meshFilter.sharedMesh = curMesh;
 
+                UnityEngine.Collider collider = null;
 				switch (Collider)
 				{
 					case ColliderType.Box:
 						var boxCollider = primitiveObj.AddComponent<BoxCollider>();
+                        collider = boxCollider;
 						boxCollider.center = curMesh.bounds.center;
 						boxCollider.size = curMesh.bounds.size;
 						break;
 					case ColliderType.Mesh:
 						var meshCollider = primitiveObj.AddComponent<MeshCollider>();
+                        collider = meshCollider;
 						meshCollider.sharedMesh = curMesh;
+
+                        meshCollider.cookingOptions = 
+                            MeshColliderCookingOptions.CookForFasterSimulation |
+                            MeshColliderCookingOptions.EnableMeshCleaning |
+                            MeshColliderCookingOptions.WeldColocatedVertices;
 						break;
 					case ColliderType.MeshConvex:
 						var meshConvexCollider = primitiveObj.AddComponent<MeshCollider>();
+                        collider = meshConvexCollider;
 						meshConvexCollider.sharedMesh = curMesh;
 						meshConvexCollider.convex = true;
 						break;
 				}
 
+                if (collider != null)
+                {
+                    collider.enabled = startCollidersEnabled;
+                }
+
                 if (mesh.Primitives.Count > 1)
                 {
                     primitiveObj.transform.SetParent(parent, false);
+                    float startTime = Time.time;
 				    primitiveObj.SetActive(true);
+                    this.activateTime += Time.time - startTime;
                 }
 				//_assetCache.MeshCache[meshId][i].PrimitiveGO = primitiveObj;
 			}
