@@ -233,6 +233,7 @@ namespace UnityGLTF
 		protected bool _isRunning = false;
         public GltfGlobalCache globalCache;
         public bool startCollidersEnabled = true;
+        public bool useMeshRenderers = true;
 
 		/// <summary>
 		/// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -497,10 +498,14 @@ namespace UnityGLTF
 				if (_assetCache.MeshCache[meshIdIndex][i].MeshAttributes.Count == 0)
 				{
 					await ConstructMeshAttributes(primitive, meshIdIndex, i);
-					if (primitive.Material != null)
-					{
-						await ConstructMaterialImageBuffers(primitive.Material.Value);
-					}
+
+                    if (useMeshRenderers)
+                    {
+                        if (primitive.Material != null)
+                        {
+                            await ConstructMaterialImageBuffers(primitive.Material.Value);
+                        }
+                    }
 				}
 			}
 		}
@@ -1480,35 +1485,39 @@ namespace UnityGLTF
                     //primitiveObj.hideFlags = HideFlags.DontSaveInEditor;
                 }
 
-                MaterialCacheData materialCacheData =
-					materialIndex >= 0 ? _assetCache.MaterialCache[materialIndex] : _defaultLoadedMaterial;
-
-				Material material = materialCacheData.GetContents(primitive.Attributes.ContainsKey(SemanticProperties.Color(0)));
-
 				Mesh curMesh = _assetCache.MeshCache[meshId][i].LoadedMesh;
-				if (NeedsSkinnedMeshRenderer(primitive, skin))
-				{
-					var skinnedMeshRenderer = primitiveObj.AddComponent<SkinnedMeshRenderer>();
-					skinnedMeshRenderer.material = material;
-					skinnedMeshRenderer.quality = SkinQuality.Auto;
-					// TODO: add support for blend shapes/morph targets
-					//if (HasBlendShapes(primitive))
-					//	SetupBlendShapes(primitive);
-					if (HasBones(skin))
-					{
-						await SetupBones(skin, primitive, skinnedMeshRenderer, primitiveObj, curMesh);
-					}
 
-					skinnedMeshRenderer.sharedMesh = curMesh;
-				}
-				else
-				{
-					var meshRenderer = primitiveObj.AddComponent<MeshRenderer>();
-					meshRenderer.material = material;
-				}
+                if (useMeshRenderers)
+                {
+                    MaterialCacheData materialCacheData =
+					    materialIndex >= 0 ? _assetCache.MaterialCache[materialIndex] : _defaultLoadedMaterial;
 
-				MeshFilter meshFilter = primitiveObj.AddComponent<MeshFilter>();
-				meshFilter.sharedMesh = curMesh;
+				    Material material = materialCacheData.GetContents(primitive.Attributes.ContainsKey(SemanticProperties.Color(0)));
+
+                    if (NeedsSkinnedMeshRenderer(primitive, skin))
+                    {
+                        var skinnedMeshRenderer = primitiveObj.AddComponent<SkinnedMeshRenderer>();
+                        skinnedMeshRenderer.material = material;
+                        skinnedMeshRenderer.quality = SkinQuality.Auto;
+                        // TODO: add support for blend shapes/morph targets
+                        //if (HasBlendShapes(primitive))
+                        //	SetupBlendShapes(primitive);
+                        if (HasBones(skin))
+                        {
+                            await SetupBones(skin, primitive, skinnedMeshRenderer, primitiveObj, curMesh);
+                        }
+
+                        skinnedMeshRenderer.sharedMesh = curMesh;
+                    }
+                    else
+                    {
+                        var meshRenderer = primitiveObj.AddComponent<MeshRenderer>();
+                        meshRenderer.material = material;
+                    }
+
+                    MeshFilter meshFilter = primitiveObj.AddComponent<MeshFilter>();
+                    meshFilter.sharedMesh = curMesh;
+                }
 
                 UnityEngine.Collider collider = null;
 				switch (Collider)
@@ -1584,12 +1593,15 @@ namespace UnityGLTF
 
 			bool shouldUseDefaultMaterial = primitive.Material == null;
 
-			GLTFMaterial materialToLoad = shouldUseDefaultMaterial ? DefaultMaterial : primitive.Material.Value;
-			if ((shouldUseDefaultMaterial && _defaultLoadedMaterial == null) ||
-				(!shouldUseDefaultMaterial && _assetCache.MaterialCache[materialIndex] == null))
-			{
-				await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
-			}
+            if (useMeshRenderers)
+            {
+                GLTFMaterial materialToLoad = shouldUseDefaultMaterial ? DefaultMaterial : primitive.Material.Value;
+                if ((shouldUseDefaultMaterial && _defaultLoadedMaterial == null) ||
+                    (!shouldUseDefaultMaterial && _assetCache.MaterialCache[materialIndex] == null))
+                {
+                    await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
+                }
+            }
 		}
 
 		protected UnityMeshData ConvertAccessorsToUnityTypes(MeshConstructionData meshConstructionData)
@@ -1751,58 +1763,61 @@ namespace UnityGLTF
                     //Debug.Log("Frame moved " + (Time.frameCount - frame));
                 }
             }
-			mesh.normals = unityMeshData.Normals;
+            if (useMeshRenderers)
             {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
+                mesh.normals = unityMeshData.Normals;
                 {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
                 }
-            }
-			mesh.uv = unityMeshData.Uv1;
-            {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
+                mesh.uv = unityMeshData.Uv1;
                 {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
                 }
-            }
-			mesh.uv2 = unityMeshData.Uv2;
-            {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
+                mesh.uv2 = unityMeshData.Uv2;
                 {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
                 }
-            }
-			mesh.uv3 = unityMeshData.Uv3;
-            {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
+                mesh.uv3 = unityMeshData.Uv3;
                 {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
                 }
-            }
-			mesh.uv4 = unityMeshData.Uv4;
-            {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
+                mesh.uv4 = unityMeshData.Uv4;
                 {
-                    ////Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        ////Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
                 }
-            }
-			mesh.colors = unityMeshData.Colors;
-            {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
+                mesh.colors = unityMeshData.Colors;
                 {
-                    ////Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    int frame = Time.frameCount;
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (Time.frameCount != frame)
+                    {
+                        ////Debug.Log("Frame moved " + (Time.frameCount - frame));
+                    }
                 }
             }
 			mesh.triangles = unityMeshData.Triangles;
