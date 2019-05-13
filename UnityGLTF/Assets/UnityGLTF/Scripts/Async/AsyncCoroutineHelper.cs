@@ -8,7 +8,7 @@ namespace UnityGLTF
 	public interface IAsyncCoroutineHelper
 	{
 		Task RunAsTask(IEnumerator coroutine, string name);
-		Task YieldOnTimeout();
+		Task YieldOnTimeout(string msg = null);
 	}
 
 	public class AsyncCoroutineHelper : MonoBehaviour, IAsyncCoroutineHelper
@@ -18,6 +18,8 @@ namespace UnityGLTF
 		private Queue<CoroutineInfo> _actions = new Queue<CoroutineInfo>();
 		private WaitForEndOfFrame _waitForEndOfFrame = new WaitForEndOfFrame();
 		private float _timeout;
+        public bool verbose = false;
+        public float frameOverrunTimeReport = .1f;
 
 		public Task RunAsTask(IEnumerator coroutine, string name)
 		{
@@ -37,10 +39,18 @@ namespace UnityGLTF
 			return tcs.Task;
 		}
 
-		public async Task YieldOnTimeout()
+		public async Task YieldOnTimeout(string msg = null)
 		{
 			if (Time.realtimeSinceStartup > _timeout)
 			{
+                if (verbose)
+                {
+                    float overrun = (Time.realtimeSinceStartup - _timeout);
+                    if (overrun > frameOverrunTimeReport)
+                    {
+                        Debug.Log("Frame overrun " + overrun + (msg == null ? "" : " at " + msg));
+                    }
+                }
                 int frame = Time.frameCount;
                 //await RunAsTask(EmptyYieldEnum(), nameof(EmptyYieldEnum));
                 await Task.Delay(TimeSpan.FromMilliseconds(1));

@@ -29,13 +29,10 @@ namespace UnityGLTF.Loader
             set { baseAddress = new Uri(value); }
             get { return baseAddress.ToString(); }
         }
-        bool tryDDS = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.DXT1);
 
-        public bool TryDDS
-        {
-            set { tryDDS = value; }
-            get { return tryDDS; }
-        }
+        public bool TryDDS { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.DXT1);
+        public bool TryKTX { set; get; } = false; // UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.ETC2_RGB);
+        public bool Verbose { set; get; }
 
 		public WebRequestLoader(string rootUri)
 		{
@@ -43,6 +40,7 @@ namespace UnityGLTF.Loader
 			ServicePointManager.ServerCertificateValidationCallback = ValidateServerCertificate;
 #endif
             BaseAddress = rootUri;
+
 		}
 
         public Uri FullPath(string file)
@@ -60,7 +58,11 @@ namespace UnityGLTF.Loader
             string gltfFilePathUpper = gltfFilePath.ToUpper();
             bool isPngOrJpg = gltfFilePathUpper.EndsWith("PNG") || gltfFilePathUpper.EndsWith("JPG");
             string updatedPath = gltfFilePath;
-            if (isPngOrJpg && TryDDS)
+            if (isPngOrJpg && TryKTX)
+            {
+                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".ktx";
+            }
+            else if (isPngOrJpg && TryDDS)
             {
                 updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".DDS";
             }
@@ -71,6 +73,10 @@ namespace UnityGLTF.Loader
 				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath));
 #else
                 var tokenSource = new CancellationTokenSource(30000);
+                if (Verbose)
+                {
+                    UnityEngine.Debug.Log(updatedPath);
+                }
 				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath), tokenSource.Token);
 #endif
 			}
@@ -83,10 +89,11 @@ namespace UnityGLTF.Loader
 #endif
 			}
 
-			if(!response.IsSuccessStatusCode && isPngOrJpg && TryDDS)
+			if(!response.IsSuccessStatusCode && isPngOrJpg && (TryDDS || TryKTX))
             {
-                UnityEngine.Debug.Log("Tried DDS for " +  updatedPath + ", but did not find any. So not trying any more");
+                UnityEngine.Debug.Log("Tried DDS/ktx for " +  updatedPath + ", but did not find any. So not trying any more");
                 TryDDS = false;
+                TryKTX = false;
                 try
                 {
 #if WINDOWS_UWP

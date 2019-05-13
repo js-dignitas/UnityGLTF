@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 #if !WINDOWS_UWP
 using System.Threading;
 #endif
@@ -219,7 +220,7 @@ namespace UnityGLTF
 			public long StartPosition;
 		}
 
-		protected IAsyncCoroutineHelper _asyncCoroutineHelper;
+		protected AsyncCoroutineHelper _asyncCoroutineHelper;
 
 		protected GameObject _lastLoadedScene;
 		protected readonly GLTFMaterial DefaultMaterial = new GLTFMaterial();
@@ -234,6 +235,9 @@ namespace UnityGLTF
         public GltfGlobalCache globalCache;
         public bool startCollidersEnabled = true;
         public bool useMeshRenderers = true;
+        public bool doTextureCompression = true;
+        public bool verbose = false;
+        public bool mipmapping = true;
 
 		/// <summary>
 		/// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -744,7 +748,7 @@ namespace UnityGLTF
 
                 {
                     int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("create stream");
                     if (Time.frameCount != frame)
                     {
                         //Debug.Log("Frame moved " + (Time.frameCount - frame));
@@ -757,7 +761,61 @@ namespace UnityGLTF
 			}
 		}
 
-		protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool isLinear, GLTFImage image, int imageCacheIndex)
+        class TextureRef
+        {
+            public Texture2D texture;
+        }
+
+        async Task ConstructUnityTextureFromBytes(byte[] buffer, bool markGpuOnly, bool isLinear, GLTFImage image, TextureRef textureRef)
+        {
+            Texture2D texture = null;
+            if (Dds.IsDDS(buffer))
+            {
+                var format = TextureFormat.DXT1;
+                if (image.Uri.EndsWith("png"))
+                {
+                    format = TextureFormat.DXT5;
+                }
+                texture = Dds.LoadTextureDXT(buffer, format, isLinear, markGpuOnly,verbose);
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadTextureDXT");
+            }
+            else if (Ktx.IsKTX(buffer))
+            {
+                texture = Ktx.LoadTextureKTX(buffer, isLinear, markGpuOnly);
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadTextureKTX");
+            }
+
+            if (texture == null)
+            {
+                TextureFormat format = TextureFormat.RGBA32;
+                if (image.Uri.EndsWith("jpg"))
+                {
+                    format = TextureFormat.RGB24;
+                }
+                texture = new Texture2D(0, 0, format, mipmapping, isLinear);
+                texture.LoadImage(buffer, markGpuOnly);
+                if (verbose)
+                {
+                    Debug.Log("Image   size  : " + buffer.Length);
+                    var raw = texture.GetRawTextureData();
+                    Debug.Log("Texture format:    " + texture.format + ", size: " + raw.Length + ",mips: " + texture.mipmapCount + ", bytes: " + raw[0] + " " + raw[1] + " " + raw[2] + " " + raw[3]);
+                }
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadImage");
+                if (doTextureCompression)
+                {
+                    texture.Compress(true);
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("Texture Compress");
+                    if (verbose)
+                    {
+                        var raw = texture.GetRawTextureData();
+                        Debug.Log("Compressed format: " + texture.format + ", size: " + raw.Length + ",mips: " + texture.mipmapCount + ", bytes: " + raw[0] + " " + raw[1] + " " + raw[2] + " " + raw[3]);
+                    }
+                }
+            }
+            textureRef.texture = texture;
+        }
+
+        protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool isLinear, GLTFImage image, int imageCacheIndex)
 		{
             Texture2D texture = null;
             if (image.Uri != null && globalCache != null)
@@ -778,15 +836,9 @@ namespace UnityGLTF
                     using (MemoryStream memoryStream = stream as MemoryStream)
                     {
                         byte[] buffer = memoryStream.ToArray();
-                        if (IsDDS(buffer))
-                        {
-                            texture = LoadTextureDXT(buffer, TextureFormat.DXT1);
-                        }
-                        if (texture == null)
-                        {
-                            texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, isLinear);
-                            texture.LoadImage(buffer, markGpuOnly);
-                        }
+                        var texRef = new TextureRef();
+                        await ConstructUnityTextureFromBytes(buffer, markGpuOnly, isLinear, image, texRef);
+                        texture = texRef.texture;
                     }
                 }
                 else
@@ -801,22 +853,15 @@ namespace UnityGLTF
                     stream.Read(buffer, 0, (int)stream.Length);
 
                     int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("Stream read");
                     if (Time.frameCount != frame)
                     {
                         //Debug.Log("Frame moved " + (Time.frameCount - frame));
                     }
 
-                    if (IsDDS(buffer))
-                    {
-                        texture = LoadTextureDXT(buffer, TextureFormat.DXT1);
-                    }
-                    if (texture == null)
-                    {
-                        texture = new Texture2D(0, 0, TextureFormat.RGBA32, true, isLinear);
-                        //	NOTE: the second parameter of LoadImage() marks non-readable, but we can't mark it until after we call Apply()
-                        texture.LoadImage(buffer, markGpuOnly);
-                    }
+                    var texRef = new TextureRef();
+                    await ConstructUnityTextureFromBytes(buffer, markGpuOnly, isLinear, image, texRef);
+                    texture = texRef.texture;
                 }
 
                 if (image.Uri != null && globalCache != null)
@@ -1739,12 +1784,7 @@ namespace UnityGLTF
             bool hasNormals = unityMeshData.Normals != null;
 
             {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
-                {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                }
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("Before mesh");
             }
             Mesh mesh = new Mesh
             {
@@ -1756,96 +1796,46 @@ namespace UnityGLTF
 
             mesh.vertices = unityMeshData.Vertices;
             {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
-                {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                }
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.vertices");
             }
             if (useMeshRenderers)
             {
                 mesh.normals = unityMeshData.Normals;
                 {
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                    if (Time.frameCount != frame)
-                    {
-                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.normals");
                 }
                 mesh.uv = unityMeshData.Uv1;
                 {
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                    if (Time.frameCount != frame)
-                    {
-                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.uv");
                 }
                 mesh.uv2 = unityMeshData.Uv2;
                 {
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                    if (Time.frameCount != frame)
-                    {
-                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.uv2");
                 }
                 mesh.uv3 = unityMeshData.Uv3;
                 {
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                    if (Time.frameCount != frame)
-                    {
-                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.uv3");
                 }
                 mesh.uv4 = unityMeshData.Uv4;
                 {
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                    if (Time.frameCount != frame)
-                    {
-                        ////Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.uv4");
                 }
                 mesh.colors = unityMeshData.Colors;
                 {
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                    if (Time.frameCount != frame)
-                    {
-                        ////Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.colors");
                 }
             }
 			mesh.triangles = unityMeshData.Triangles;
             {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
-                {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                }
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.triangles");
             }
 			mesh.tangents = unityMeshData.Tangents;
             {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
-                {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                }
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.tangents");
             }
 			mesh.boneWeights = unityMeshData.BoneWeights;
             {
-                int frame = Time.frameCount;
-                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout();
-                if (Time.frameCount != frame)
-                {
-                    //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                }
+                if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("mesh.boneWeights");
             }
 
 			if (!hasNormals)
@@ -2211,23 +2201,20 @@ namespace UnityGLTF
 			}
 		}
 
-		protected virtual void ConstructImageFromGLB(GLTFImage image, int imageCacheIndex)
+		protected virtual async Task ConstructImageFromGLB(GLTFImage image, int imageCacheIndex)
 		{
 			//var texture = new Texture2D(0, 0);
-            var texture = new Texture2D(0, 0, TextureFormat.DXT1, true);
             var bufferView = image.BufferView.Value;
 			var data = new byte[bufferView.ByteLength];
 
 			var bufferContents = _assetCache.BufferCache[bufferView.Buffer.Id];
 			bufferContents.Stream.Position = bufferView.ByteOffset + bufferContents.ChunkOffset;
 			bufferContents.Stream.Read(data, 0, data.Length);
-			if (texture.LoadImage(data))
-            {
-			    texture = new Texture2D(0, 0);
-                texture.LoadImage(data);
-            }
 
-			_assetCache.ImageCache[imageCacheIndex] = texture;
+            var texRef = new TextureRef();
+            await ConstructUnityTextureFromBytes(data, !KeepCPUCopyOfTexture, true, image, texRef);
+
+            _assetCache.ImageCache[imageCacheIndex] = texRef.texture;
 
 		}
 
@@ -2289,31 +2276,8 @@ namespace UnityGLTF
 			_assetCache = null;
 		}
 
-        private static bool IsDDS(byte[] bytes)
-        {
-            return bytes[4] == 124;
 
-        }
-        private static Texture2D LoadTextureDXT(byte[] ddsBytes, TextureFormat textureFormat)
-        {
-            if (textureFormat != TextureFormat.DXT1 && textureFormat != TextureFormat.DXT5)
-                throw new Exception("Invalid TextureFormat. Only DXT1 and DXT5 formats are supported by this method.");
 
-            if (!IsDDS(ddsBytes))
-                throw new Exception("Invalid DDS DXTn texture. Unable to read");  //this header byte should be 124 for DDS image files
-
-            int height = ddsBytes[13] * 256 + ddsBytes[12];
-            int width = ddsBytes[17] * 256 + ddsBytes[16];
-
-            int DDS_HEADER_SIZE = 128;
-            byte[] dxtBytes = new byte[ddsBytes.Length - DDS_HEADER_SIZE];
-            Buffer.BlockCopy(ddsBytes, DDS_HEADER_SIZE, dxtBytes, 0, ddsBytes.Length - DDS_HEADER_SIZE);
-
-            Texture2D texture = new Texture2D(width, height, textureFormat, true);
-            texture.LoadRawTextureData(dxtBytes);
-            texture.Apply();
-
-            return (texture);
-        }
+        
     }
 }
