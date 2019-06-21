@@ -106,8 +106,16 @@ namespace UnityGLTF
         {
             return bytes[4] == 124;
         }
+
+        public static int CalcSize(int width, int height, TextureFormat format)
+        {
+            int factor = format == TextureFormat.DXT1 ? 8 : 16;
+            int size = Math.Max(1, ((width + 3) / 4)) * Math.Max(1, ((height + 3) / 4)) * factor;
+            return size;
+        }
         public static Texture2D LoadTextureDXT(byte[] ddsBytes, TextureFormat textureFormat, bool isLinear, bool gpuOnly, bool verbose)
         {
+            int skipLevels = 3;
             if (textureFormat != TextureFormat.DXT1 && textureFormat != TextureFormat.DXT5)
                 throw new Exception("Invalid TextureFormat. Only DXT1 and DXT5 formats are supported by this method.");
 
@@ -116,10 +124,16 @@ namespace UnityGLTF
 
             Dds dds = new Dds();
             dds.Read(ddsBytes);
-            //int height = ddsBytes[13] * 256 + ddsBytes[12];
-            //int width = ddsBytes[17] * 256 + ddsBytes[16];
+
             int height = (int)dds.height;
             int width = (int)dds.width;
+
+            if (dds.mipmapCount == 0)
+            {
+                Debug.Log("Did not expect this");
+            }
+            skipLevels = Math.Min(skipLevels, (int)dds.mipmapCount - 1);
+
 
             if (dds.HasPixelFormat())
             {
@@ -135,13 +149,33 @@ namespace UnityGLTF
                     }
                 }
             }
+
+            int mipImageSizeSkip = 0;
+
+            for(int i = 0; i < skipLevels && width > 64 && height > 64; i++)
+            
+            {
+                int mipImageSize = CalcSize(width, height, textureFormat);
+                mipImageSizeSkip += mipImageSize;
+                height = Math.Max(height >> 1, 1);
+                width = Math.Max(width >> 1, 1);
+            }
+
             int DDS_HEADER_SIZE = 128;
-            byte[] dxtBytes = new byte[ddsBytes.Length - DDS_HEADER_SIZE];
-            Buffer.BlockCopy(ddsBytes, DDS_HEADER_SIZE, dxtBytes, 0, ddsBytes.Length - DDS_HEADER_SIZE);
+            byte[] dxtBytes = new byte[ddsBytes.Length - DDS_HEADER_SIZE - mipImageSizeSkip];
+            Buffer.BlockCopy(ddsBytes, DDS_HEADER_SIZE + mipImageSizeSkip, dxtBytes, 0, dxtBytes.Length);
+
+            Debug.Log("mipImageSizeSkip: " + mipImageSizeSkip + ", dxtBytes.Length: " + dxtBytes.Length + ", width: " + width);
+
+            if (width * height == 1)
+            {
+                Debug.Log("Texture 1x1 dim, size: " + dxtBytes.Length);
+
+            }
 
             Texture2D texture = new Texture2D(width, height, textureFormat, true);//, isLinear);
             texture.LoadRawTextureData(dxtBytes);
-            texture.Apply(); // false, gpuOnly);
+            texture.Apply();
             if (verbose)
             {
                 Debug.Log("Image   size  : " + dxtBytes.Length);
