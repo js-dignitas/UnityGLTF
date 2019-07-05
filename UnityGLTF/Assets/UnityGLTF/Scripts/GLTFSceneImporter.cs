@@ -529,9 +529,9 @@ namespace UnityGLTF
                     {
                         if (!inGlobalCache)
                         {
-                            float startTime = Time.time;
+                            //float startTime = Time.time;
                             await _loader.LoadStream(image.Uri);
-                            this.downloadingTime += Time.time - startTime;
+                            //this.downloadingTime += Time.time - startTime;
                         }
                         else
                         {
