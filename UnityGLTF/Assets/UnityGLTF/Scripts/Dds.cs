@@ -148,7 +148,7 @@ namespace UnityGLTF
 
             int mipImageSizeSkip = 0;
 
-            for(int i = 0; i < skipLevels && (height >> 1) > maxDim && (width >> 1) > maxDim; i++)
+            for(int i = 0; i < skipLevels && height > maxDim && width > maxDim; i++)
             
             {
                 int mipImageSize = CalcSize(width, height, textureFormat);
