@@ -238,6 +238,7 @@ namespace UnityGLTF
         public bool doTextureCompression = true;
         public bool verbose = false;
         public bool mipmapping = true;
+        public int maxImageDim = 32768;
 
         /// <summary>
         /// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -779,7 +780,7 @@ namespace UnityGLTF
             if (Dds.IsDDS(buffer))
             {
                 var format = TextureFormat.DXT1;
-                texture = Dds.LoadTextureDXT(buffer, format, isLinear, markGpuOnly,verbose);
+                texture = Dds.LoadTextureDXT(buffer, format, isLinear, markGpuOnly,verbose, maxImageDim);
                 if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadTextureDXT");
             }
             else if (Ktx.IsKTX(buffer))

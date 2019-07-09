@@ -113,9 +113,9 @@ namespace UnityGLTF
             int size = Math.Max(1, ((width + 3) / 4)) * Math.Max(1, ((height + 3) / 4)) * factor;
             return size;
         }
-        public static Texture2D LoadTextureDXT(byte[] ddsBytes, TextureFormat textureFormat, bool isLinear, bool gpuOnly, bool verbose)
+        public static Texture2D LoadTextureDXT(byte[] ddsBytes, TextureFormat textureFormat, bool isLinear, bool gpuOnly, bool verbose, int maxDim = 32768)
         {
-            int skipLevels = 3;
+            int skipLevels = 10;
             if (textureFormat != TextureFormat.DXT1 && textureFormat != TextureFormat.DXT5)
                 throw new Exception("Invalid TextureFormat. Only DXT1 and DXT5 formats are supported by this method.");
 
@@ -128,10 +128,6 @@ namespace UnityGLTF
             int height = (int)dds.height;
             int width = (int)dds.width;
 
-            if (dds.mipmapCount == 0)
-            {
-                Debug.Log("Did not expect this");
-            }
             skipLevels = Math.Min(skipLevels, (int)dds.mipmapCount - 1);
 
 
@@ -165,12 +161,15 @@ namespace UnityGLTF
             byte[] dxtBytes = new byte[ddsBytes.Length - DDS_HEADER_SIZE - mipImageSizeSkip];
             Buffer.BlockCopy(ddsBytes, DDS_HEADER_SIZE + mipImageSizeSkip, dxtBytes, 0, dxtBytes.Length);
 
-            Debug.Log("mipImageSizeSkip: " + mipImageSizeSkip + ", dxtBytes.Length: " + dxtBytes.Length + ", width: " + width);
-
-            if (width * height == 1)
+            if (verbose)
             {
-                Debug.Log("Texture 1x1 dim, size: " + dxtBytes.Length);
+                Debug.Log("mipImageSizeSkip: " + mipImageSizeSkip + ", dxtBytes.Length: " + dxtBytes.Length + ", width: " + width);
 
+                if (width * height == 1)
+                {
+                    Debug.Log("Texture 1x1 dim, size: " + dxtBytes.Length);
+
+                }
             }
 
             Texture2D texture = new Texture2D(width, height, textureFormat, true);//, isLinear);
