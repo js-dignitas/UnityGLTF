@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Net;
-#if WINDOWS_UWP
+#if WINDOWS_UWP_IGNORE_THIS
 using Windows.Web.Http;
 using Windows.Security;
 using Windows.Storage.Streams;
@@ -36,7 +36,7 @@ namespace UnityGLTF.Loader
 
 		public WebRequestLoader(string rootUri)
 		{
-#if !WINDOWS_UWP
+#if !WINDOWS_UWP_IGNORE_THIS
 			ServicePointManager.ServerCertificateValidationCallback = ValidateServerCertificate;
 #endif
             BaseAddress = rootUri;
@@ -69,7 +69,7 @@ namespace UnityGLTF.Loader
 			HttpResponseMessage response;
 			try
 			{
-#if WINDOWS_UWP
+#if WINDOWS_UWP_IGNORE_THIS
 				response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath));
 #else
                 var tokenSource = new CancellationTokenSource(30000);
@@ -82,7 +82,7 @@ namespace UnityGLTF.Loader
 			}
 			catch (TaskCanceledException)
 			{
-#if WINDOWS_UWP
+#if WINDOWS_UWP_IGNORE_THIS
 				throw new Exception("Connection timeout");
 #else
 				throw new HttpRequestException("Connection timeout");
@@ -96,7 +96,7 @@ namespace UnityGLTF.Loader
                 TryKTX = false;
                 try
                 {
-#if WINDOWS_UWP
+#if WINDOWS_UWP_IGNORE_THIS
 				response = await httpClient.GetAsync(new Uri(baseAddress, gltfFilePath));
 #else
                     var tokenSource = new CancellationTokenSource(30000);
@@ -105,7 +105,7 @@ namespace UnityGLTF.Loader
                 }
                 catch (TaskCanceledException e)
                 {
-#if WINDOWS_UWP
+#if WINDOWS_UWP_IGNORE_THIS
 				throw new Exception($"Connection timeout: {baseAddress}");
 #else
                     throw new HttpRequestException($"Connection timeout: {baseAddress}");
@@ -118,7 +118,7 @@ namespace UnityGLTF.Loader
 			// HACK: Download the whole file before returning the stream
 			// Ideally the parsers would wait for data to be available, but they don't.
 			LoadedStream = new MemoryStream((int?)response.Content.Headers.ContentLength ?? 5000);
-#if WINDOWS_UWP
+#if WINDOWS_UWP_IGNORE_THIS
 			await response.Content.WriteToStreamAsync(LoadedStream.AsOutputStream());
 #else
 			await response.Content.CopyToAsync(LoadedStream);
@@ -131,7 +131,7 @@ namespace UnityGLTF.Loader
 			throw new NotImplementedException();
 		}
 
-#if !WINDOWS_UWP
+#if !WINDOWS_UWP_IGNORE_THIS
 		// enables HTTPS support
 		// https://answers.unity.com/questions/50013/httpwebrequestgetrequeststream-https-certificate-e.html
 		private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
