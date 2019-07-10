@@ -9,7 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
-#if !WINDOWS_UWP
+#if !WINDOWS_UWP_IGNORE_THIS
 using System.Threading;
 #endif
 using System.Threading.Tasks;
@@ -20,7 +20,7 @@ using UnityGLTF.Extensions;
 using UnityGLTF.Loader;
 using Matrix4x4 = GLTF.Math.Matrix4x4;
 using Object = UnityEngine.Object;
-#if !WINDOWS_UWP
+#if !WINDOWS_UWP_IGNORE_THIS
 using ThreadPriority = System.Threading.ThreadPriority;
 #endif
 using WrapMode = UnityEngine.WrapMode;
@@ -570,7 +570,7 @@ namespace UnityGLTF
         private async Task LoadJson(string jsonFilePath)
         {
             float startTime = Time.time;
-#if !WINDOWS_UWP
+#if !WINDOWS_UWP_IGNORE_THIS
             if (IsMultithreaded && _loader.HasSyncLoadMethod)
             {
                 Thread loadThread = new Thread(() => _loader.LoadStreamSync(jsonFilePath));
@@ -590,7 +590,7 @@ namespace UnityGLTF
 
             this.downloadingTime += Time.time - startTime;
 
-#if !WINDOWS_UWP
+#if !WINDOWS_UWP_IGNORE_THIS
             if (IsMultithreaded)
             {
                 Thread parseJsonThread = new Thread(() => GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition));

@@ -386,7 +386,7 @@ namespace GLTF.Schema
                 }
                 finally
                 {
-                    if (handle.IsAllocated)
+                    //if (handle.IsAllocated)
                     {
                         handle.Free();
                     }
@@ -474,7 +474,7 @@ namespace GLTF.Schema
                 }
                 finally
                 {
-                    if (handle.IsAllocated)
+                    //if (handle.IsAllocated)
                     {
                         handle.Free();
                     }
@@ -535,7 +535,7 @@ namespace GLTF.Schema
                 }
                 finally
                 {
-                    if (handle.IsAllocated)
+                    //if (handle.IsAllocated)
                     {
                         handle.Free();
                     }
@@ -657,7 +657,7 @@ namespace GLTF.Schema
                 }
                 finally
                 {
-                    if (handle.IsAllocated)
+                    //if (handle.IsAllocated)
                     {
                         handle.Free();
                     }
