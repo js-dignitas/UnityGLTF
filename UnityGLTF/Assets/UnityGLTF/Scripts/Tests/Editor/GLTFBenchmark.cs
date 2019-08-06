@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if UNITY_EDITOR && USE_GLTF_TESTS
+using System;
 using UnityEngine;
 using UnityEditor;
 using System.Collections;
@@ -76,3 +77,4 @@ public class GLTFBenchmark : MonoBehaviour
 		}
 	}
 }
+#endif
