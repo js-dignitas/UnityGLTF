@@ -1,8 +1,6 @@
-﻿using NUnit.Framework;
-
-
-// todo blgross port to base layer
+﻿// todo blgross port to base layer
 #if false
+using NUnit.Framework;
 public class GLTFRootTest {
 
 	[Test]

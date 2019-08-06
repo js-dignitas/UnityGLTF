@@ -1,0 +1,15 @@
+{
+    "name": "UnityGLTF",
+    "references": [
+        "GUID:ce43e7b904df05540b325b854e134a99"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}
