@@ -31,7 +31,8 @@ namespace UnityGLTF.Loader
         }
 
         public bool TryDDS { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.DXT1);
-        public bool TryKTX { set; get; } = false; // UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.ETC2_RGB);
+        public bool TryETC2 { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.ETC2_RGB);
+        public bool TryASTC { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.ASTC_5x5);
         public bool Verbose { set; get; }
 
 		public WebRequestLoader(string rootUri)
@@ -58,14 +59,15 @@ namespace UnityGLTF.Loader
             string gltfFilePathUpper = gltfFilePath.ToUpper();
             bool isPngOrJpg = gltfFilePathUpper.EndsWith("PNG") || gltfFilePathUpper.EndsWith("JPG");
             string updatedPath = gltfFilePath;
-            if (isPngOrJpg && TryKTX)
+            if (isPngOrJpg && TryASTC)
             {
-                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".ktx";
+                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".astc";
             }
             else if (isPngOrJpg && TryDDS)
             {
                 updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".DDS";
             }
+
 			HttpResponseMessage response;
 			try
 			{
@@ -89,11 +91,12 @@ namespace UnityGLTF.Loader
 #endif
 			}
 
-			if(!response.IsSuccessStatusCode && isPngOrJpg && (TryDDS || TryKTX))
+			if(!response.IsSuccessStatusCode && isPngOrJpg && (TryDDS || TryASTC))
             {
-                UnityEngine.Debug.Log("Tried DDS/ktx for " +  updatedPath + ", but did not find any. So not trying any more");
+                UnityEngine.Debug.Log("Tried DDS/ASTC/ETC2 for " +  updatedPath + ", but did not find any. So not trying any more");
                 TryDDS = false;
-                TryKTX = false;
+                TryETC2 = false;
+                TryASTC = false;
                 try
                 {
 #if WINDOWS_UWP_IGNORE_THIS

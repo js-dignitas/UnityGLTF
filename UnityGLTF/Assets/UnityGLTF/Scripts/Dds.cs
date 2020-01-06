@@ -174,7 +174,7 @@ namespace UnityGLTF
 
             Texture2D texture = new Texture2D(width, height, textureFormat, true);//, isLinear);
             texture.LoadRawTextureData(dxtBytes);
-            texture.Apply();
+            texture.Apply(true, gpuOnly && !verbose);
             if (verbose)
             {
                 Debug.Log("Image   size  : " + dxtBytes.Length);
