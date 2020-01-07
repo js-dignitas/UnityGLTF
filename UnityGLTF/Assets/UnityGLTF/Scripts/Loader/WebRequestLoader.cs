@@ -61,7 +61,7 @@ namespace UnityGLTF.Loader
             string updatedPath = gltfFilePath;
             if (isPngOrJpg && TryASTC)
             {
-                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".astc";
+                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".ktx";
             }
             else if (isPngOrJpg && TryDDS)
             {
