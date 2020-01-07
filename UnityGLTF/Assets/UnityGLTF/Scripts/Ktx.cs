@@ -4,21 +4,6 @@ using UnityEngine;
 
 namespace UnityGLTF
 {
-
-    enum OpenGlInternalFormat
-    {
-        COMPRESSED_RGB8_ETC2 = 0x9274,
-        COMPRESSED_SRGB8_ETC2 = 0x9275,
-        COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 0x9276,
-        COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 0x9277,
-        COMPRESSED_RGBA8_ETC2_EAC = 0x9278,
-        COMPRESSED_SRGB8_ALPHA8_ETC2_EAC = 0x9279,
-        COMPRESSED_R11_EAC = 0x9270,
-        COMPRESSED_SIGNED_R11_EAC = 0x9271,
-        COMPRESSED_RG11_EAC = 0x9272,
-        COMPRESSED_SIGNED_RG11_EAC = 0x9273
-    }
-
     class Ktx
     {
         public static bool IsKTX(byte[] data)
@@ -29,57 +14,60 @@ namespace UnityGLTF
                 data[2] == 0x54 &&
                 data[3] == 0x58;
         }
-        static     Dictionary<KtxSharp.GlInternalFormat, TextureFormat> textureFormatMapper = new Dictionary<KtxSharp.GlInternalFormat, TextureFormat>()
-            {
-                {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGB_S3TC_DXT1_EXT,TextureFormat.DXT1} , // ???
-		        {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,TextureFormat.DXT1} , // ???
-		        {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,TextureFormat.DXT5} , // ???
-		        {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,TextureFormat.DXT5} , // ???
-		        {KtxSharp.GlInternalFormat.GL_ETC1_RGB8_OES,TextureFormat.ETC_RGB4} , // ???
-		        {KtxSharp.GlInternalFormat.GL_COMPRESSED_R11_EAC,TextureFormat.EAC_R} ,
-                {KtxSharp.GlInternalFormat.GL_COMPRESSED_SIGNED_R11_EAC,TextureFormat.EAC_R_SIGNED} ,
-        {KtxSharp.GlInternalFormat.GL_COMPRESSED_RG11_EAC,TextureFormat.EAC_RG} ,
-        {KtxSharp.GlInternalFormat.GL_COMPRESSED_SIGNED_RG11_EAC,TextureFormat.EAC_RG_SIGNED} ,
 
-        {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGB8_ETC2,TextureFormat.ETC2_RGB} ,
-        {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ETC2,TextureFormat.ETC2_RGBA8} , // ???
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2,TextureFormat.ETC2_RGB} , // ???
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2,TextureFormat.ETC2_RGBA8} , // ???
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA8_ETC2_EAC,TextureFormat.ETC2_RGBA8},
-        {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,TextureFormat.ETC2_RGBA8}, // ???
+        /// <summary>
+        /// Mapping the glInternalFormat to Unity TextureFormat
+        /// </summary>
+        static Dictionary<KtxSharp.GlInternalFormat, TextureFormat> textureFormatMapper = new Dictionary<KtxSharp.GlInternalFormat, TextureFormat>()
+        {
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGB_S3TC_DXT1_EXT,TextureFormat.DXT1}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,TextureFormat.DXT1}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,TextureFormat.DXT5}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,TextureFormat.DXT5}, // ???
+            {KtxSharp.GlInternalFormat.GL_ETC1_RGB8_OES,TextureFormat.ETC_RGB4}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_R11_EAC,TextureFormat.EAC_R},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SIGNED_R11_EAC,TextureFormat.EAC_R_SIGNED},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RG11_EAC,TextureFormat.EAC_RG},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SIGNED_RG11_EAC,TextureFormat.EAC_RG_SIGNED},
 
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_4x4_KHR,TextureFormat.ASTC_4x4} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_5x4_KHR,TextureFormat.ASTC_5x4} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_5x5_KHR,TextureFormat.ASTC_5x5} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_6x5_KHR,TextureFormat.ASTC_6x5} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_6x6_KHR,TextureFormat.ASTC_6x6} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_8x5_KHR,TextureFormat.ASTC_8x5} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_8x6_KHR,TextureFormat.ASTC_8x4} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_8x8_KHR,TextureFormat.ASTC_8x8} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x5_KHR,TextureFormat.ASTC_10x5} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x6_KHR,TextureFormat.ASTC_4x4} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x8_KHR,TextureFormat.ASTC_4x4} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x10_KHR,TextureFormat.ASTC_10x10} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_12x10_KHR,TextureFormat.ASTC_12x12} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_12x12_KHR,TextureFormat.ASTC_12x12 },
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGB8_ETC2,TextureFormat.ETC2_RGB},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ETC2,TextureFormat.ETC2_RGBA8}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2,TextureFormat.ETC2_RGB}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2,TextureFormat.ETC2_RGBA8}, // ???
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA8_ETC2_EAC,TextureFormat.ETC2_RGBA8},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,TextureFormat.ETC2_RGBA8}, // ???
+
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_4x4_KHR,TextureFormat.ASTC_4x4},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_5x4_KHR,TextureFormat.ASTC_5x4},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_5x5_KHR,TextureFormat.ASTC_5x5},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_6x5_KHR,TextureFormat.ASTC_6x5},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_6x6_KHR,TextureFormat.ASTC_6x6},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_8x5_KHR,TextureFormat.ASTC_8x5},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_8x6_KHR,TextureFormat.ASTC_8x4},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_8x8_KHR,TextureFormat.ASTC_8x8},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x5_KHR,TextureFormat.ASTC_10x5},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x6_KHR,TextureFormat.ASTC_4x4},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x8_KHR,TextureFormat.ASTC_4x4},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_10x10_KHR,TextureFormat.ASTC_10x10},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_12x10_KHR,TextureFormat.ASTC_12x12},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_RGBA_ASTC_12x12_KHR,TextureFormat.ASTC_12x12 },
 
 
-        {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR,TextureFormat.ASTC_4x4} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR,TextureFormat.} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR,TextureFormat.ASTC_5x5} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR,TextureFormat} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR,TextureFormat.ASTC_6x6} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR,TextureFormat} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR,TextureFormat} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR,TextureFormat.ASTC_8x8} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR,TextureFormat} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR,TextureFormat} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR,TextureFormat} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR,TextureFormat.ASTC_10x10} ,
-		//{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR,TextureFormat} ,
-		{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR,TextureFormat.ASTC_12x12} ,
-
-            };
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR,TextureFormat.ASTC_4x4},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR,TextureFormat.},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR,TextureFormat.ASTC_5x5},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR,TextureFormat},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR,TextureFormat.ASTC_6x6},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR,TextureFormat},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR,TextureFormat},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR,TextureFormat.ASTC_8x8},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR,TextureFormat},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR,TextureFormat},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR,TextureFormat},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR,TextureFormat.ASTC_10x10},
+            //{KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR,TextureFormat},
+            {KtxSharp.GlInternalFormat.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR,TextureFormat.ASTC_12x12}
+        };
 
         public static Texture2D LoadTextureKTX(byte[] bytes, bool isLinear, bool gpuOnly)
         {
