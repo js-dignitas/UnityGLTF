@@ -787,6 +787,10 @@ namespace UnityGLTF
             {
                 texture = Ktx.LoadTextureKTX(buffer, isLinear, markGpuOnly);
                 if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadTextureKTX");
+                if (texture == null)
+                {
+                    Debug.Log("Last image error was for " + image.Uri);
+                }
             }
             else if (Astc.IsASTC(buffer))
             {
