@@ -192,6 +192,10 @@ namespace UnityGLTF
         /// Override for the shader to use on created materials
         /// </summary>
         public string CustomShaderName { get; set; }
+
+        /// <summary>
+        /// Override for the shader to use on created materials with AlphaTest set to MASK
+        /// </summary>
         public string CustomAlphaTestShaderName { get; set; }
 
         /// <summary>
@@ -1881,22 +1885,22 @@ namespace UnityGLTF
 			_assetCache.MeshCache[meshId][primitiveIndex].LoadedMesh = mesh;
 		}
 
-        bool IsTexturePng(TextureInfo textureInfo)
-        {
-            if (textureInfo != null)
-            {
-                return GetTextureName(textureInfo.Index).EndsWith(".png");
-            }
-            else
-            {
-                return false;
-            }
-        }
+		bool IsTexturePng(TextureInfo textureInfo)
+		{
+			if (textureInfo != null)
+			{
+				return GetTextureName(textureInfo.Index).EndsWith(".png");
+			}
+			else
+			{
+				return false;
+			}
+		}
 
-        string GetShaderName(GLTF.Schema.AlphaMode alphaMode)
-        {
-            return alphaMode == AlphaMode.MASK ? CustomAlphaTestShaderName : CustomShaderName;
-        }
+		string GetShaderName(GLTF.Schema.AlphaMode alphaMode)
+		{
+			return alphaMode == AlphaMode.MASK ? CustomAlphaTestShaderName : CustomShaderName;
+		}
 
 		protected virtual async Task ConstructMaterial(GLTFMaterial def, int materialIndex)
 		{
@@ -1907,15 +1911,15 @@ namespace UnityGLTF
 			if (_gltfRoot.ExtensionsUsed != null && _gltfRoot.ExtensionsUsed.Contains(specGlossExtName)
 				&& def.Extensions != null && def.Extensions.ContainsKey(specGlossExtName))
 			{
-                // If AlphaMode is not set, try to use the texture to decide if its MASK or OPAQUE
-                if (def.AlphaMode == AlphaMode.NOT_SET)
-                {
-                    var specGloss = def.Extensions[specGlossExtName] as KHR_materials_pbrSpecularGlossinessExtension;
-                    def.AlphaMode = IsTexturePng(specGloss?.DiffuseTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
-                }
+				// If AlphaMode is not set, try to use the texture to decide if its MASK or OPAQUE
+				if (def.AlphaMode == AlphaMode.NOT_SET)
+				{
+					var specGloss = def.Extensions[specGlossExtName] as KHR_materials_pbrSpecularGlossinessExtension;
+					def.AlphaMode = IsTexturePng(specGloss?.DiffuseTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
+				}
 
-                // Pick the shader based on AlphaMode
-                string shaderName = GetShaderName(def.AlphaMode);
+				// Pick the shader based on AlphaMode
+				string shaderName = GetShaderName(def.AlphaMode);
 
 				if (!string.IsNullOrEmpty(shaderName))
 				{
@@ -1928,14 +1932,14 @@ namespace UnityGLTF
 			}
 			else
 			{
-                // If AlphaMode is not set, try to use the texture to decide if its MASK or OPAQUE
-                if (def.AlphaMode == AlphaMode.NOT_SET)
-                {
-                    def.AlphaMode = IsTexturePng(def.PbrMetallicRoughness?.BaseColorTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
-                }
+				// If AlphaMode is not set, try to use the texture to decide if its MASK or OPAQUE
+				if (def.AlphaMode == AlphaMode.NOT_SET)
+				{
+					def.AlphaMode = IsTexturePng(def.PbrMetallicRoughness?.BaseColorTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
+				}
 
-                // Pick the shader based on AlphaMode
-                string shaderName = GetShaderName(def.AlphaMode);
+				// Pick the shader based on AlphaMode
+				string shaderName = GetShaderName(def.AlphaMode);
 
 				if (!string.IsNullOrEmpty(shaderName))
 				{
@@ -1948,7 +1952,7 @@ namespace UnityGLTF
 			}
 
 			mapper.Material.name = def.Name;
-            mapper.AlphaMode = def.AlphaMode;
+			mapper.AlphaMode = def.AlphaMode;
 			mapper.DoubleSided = def.DoubleSided;
 
 			var mrMapper = mapper as IMetalRoughUniformMap;
