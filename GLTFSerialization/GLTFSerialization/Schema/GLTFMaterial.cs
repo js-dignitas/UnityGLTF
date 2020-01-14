@@ -126,6 +126,8 @@ namespace GLTF.Schema
 			{
 				var curProp = reader.Value.ToString();
 
+				material.AlphaMode = AlphaMode.NOT_SET;
+
 				switch (curProp)
 				{
 					case "pbrMetallicRoughness":
@@ -236,6 +238,7 @@ namespace GLTF.Schema
 	{
 		OPAQUE,
 		MASK,
-		BLEND
+		BLEND,
+		NOT_SET
 	}
 }

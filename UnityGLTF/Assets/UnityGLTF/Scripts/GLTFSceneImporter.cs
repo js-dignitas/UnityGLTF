@@ -192,6 +192,7 @@ namespace UnityGLTF
         /// Override for the shader to use on created materials
         /// </summary>
         public string CustomShaderName { get; set; }
+        public string CustomAlphaTestShaderName { get; set; }
 
         /// <summary>
         /// Whether to keep a CPU-side copy of the mesh after upload to GPU (for example, in case normals/tangents need recalculation)
@@ -515,6 +516,19 @@ namespace UnityGLTF
             }
         }
 
+        protected string GetTextureName(TextureId textureId)
+        {
+            int sourceId = GetTextureSourceId(textureId.Value);
+
+            GLTFImage image = _gltfRoot.Images[sourceId];
+
+            // we only load the streams if not a base64 uri, meaning the data is in the uri
+            if (image?.Uri != null && !URIHelper.IsBase64Uri(image.Uri))
+            {
+                return image.Uri;
+            }
+            return "";
+        }
         protected async Task ConstructImageBuffer(GLTFTexture texture, int textureIndex)
         {
             int sourceId = GetTextureSourceId(texture);
@@ -1867,16 +1881,45 @@ namespace UnityGLTF
 			_assetCache.MeshCache[meshId][primitiveIndex].LoadedMesh = mesh;
 		}
 
+        bool IsTexturePng(TextureInfo textureInfo)
+        {
+            if (textureInfo != null)
+            {
+                return GetTextureName(textureInfo.Index).EndsWith(".png");
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        string GetShaderName(GLTF.Schema.AlphaMode alphaMode)
+        {
+            return alphaMode == AlphaMode.MASK ? CustomAlphaTestShaderName : CustomShaderName;
+        }
+
 		protected virtual async Task ConstructMaterial(GLTFMaterial def, int materialIndex)
 		{
 			IUniformMap mapper;
 			const string specGlossExtName = KHR_materials_pbrSpecularGlossinessExtensionFactory.EXTENSION_NAME;
+
+
 			if (_gltfRoot.ExtensionsUsed != null && _gltfRoot.ExtensionsUsed.Contains(specGlossExtName)
 				&& def.Extensions != null && def.Extensions.ContainsKey(specGlossExtName))
 			{
-				if (!string.IsNullOrEmpty(CustomShaderName))
+                // If AlphaMode is not set, try to use the texture to decide if its MASK or OPAQUE
+                if (def.AlphaMode == AlphaMode.NOT_SET)
+                {
+                    var specGloss = def.Extensions[specGlossExtName] as KHR_materials_pbrSpecularGlossinessExtension;
+                    def.AlphaMode = IsTexturePng(specGloss?.DiffuseTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
+                }
+
+                // Pick the shader based on AlphaMode
+                string shaderName = GetShaderName(def.AlphaMode);
+
+				if (!string.IsNullOrEmpty(shaderName))
 				{
-					mapper = new SpecGlossMap(CustomShaderName, MaximumLod);
+					mapper = new SpecGlossMap(shaderName, MaximumLod);
 				}
 				else
 				{
@@ -1885,9 +1928,18 @@ namespace UnityGLTF
 			}
 			else
 			{
-				if (!string.IsNullOrEmpty(CustomShaderName))
+                // If AlphaMode is not set, try to use the texture to decide if its MASK or OPAQUE
+                if (def.AlphaMode == AlphaMode.NOT_SET)
+                {
+                    def.AlphaMode = IsTexturePng(def.PbrMetallicRoughness?.BaseColorTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
+                }
+
+                // Pick the shader based on AlphaMode
+                string shaderName = GetShaderName(def.AlphaMode);
+
+				if (!string.IsNullOrEmpty(shaderName))
 				{
-					mapper = new MetalRoughMap(CustomShaderName, MaximumLod);
+					mapper = new MetalRoughMap(shaderName, MaximumLod);
 				}
 				else
 				{
@@ -1896,7 +1948,7 @@ namespace UnityGLTF
 			}
 
 			mapper.Material.name = def.Name;
-            mapper.AlphaMode = AlphaMode.MASK; // def.AlphaMode;
+            mapper.AlphaMode = def.AlphaMode;
 			mapper.DoubleSided = def.DoubleSided;
 
 			var mrMapper = mapper as IMetalRoughUniformMap;
