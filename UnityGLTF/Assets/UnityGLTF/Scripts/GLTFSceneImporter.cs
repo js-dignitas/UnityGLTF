@@ -2099,9 +2099,9 @@ namespace UnityGLTF
 					mapper.EmissiveXScale = ext.Scale.ToUnityVector2Raw();
 					mapper.EmissiveXTexCoord = ext.TexCoord;
 				}
+			    mapper.EmissiveFactor = def.EmissiveFactor.ToUnityColorRaw();
 			}
 
-			mapper.EmissiveFactor = def.EmissiveFactor.ToUnityColorRaw();
 
 			var vertColorMapper = mapper.Clone();
 			vertColorMapper.VertexColorsEnabled = true;
