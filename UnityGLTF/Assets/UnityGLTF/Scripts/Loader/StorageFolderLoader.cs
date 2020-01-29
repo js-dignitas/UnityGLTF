@@ -21,7 +21,6 @@ namespace UnityGLTF.Loader
 
         public void Clear()
         {
-            LoadedStream?.Close();
             LoadedStream = null;
         }
 
