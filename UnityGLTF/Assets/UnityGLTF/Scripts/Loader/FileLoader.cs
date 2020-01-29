@@ -14,6 +14,10 @@ namespace UnityGLTF.Loader
 
 		public bool HasSyncLoadMethod { get; private set; }
 
+        public void Clear()
+        {
+            LoadedStream = null;
+        }
 		public FileLoader(string rootDirectoryPath)
 		{
 			_rootDirectoryPath = rootDirectoryPath;
@@ -35,7 +39,7 @@ namespace UnityGLTF.Loader
 			string pathToLoad = Path.Combine(rootPath, fileToLoad);
 			if (!File.Exists(pathToLoad))
 			{
-				throw new FileNotFoundException("Buffer file not found", fileToLoad);
+				throw new FileNotFoundException("Buffer file not found", pathToLoad);
 			}
 
 			return Task.Run(() => { LoadedStream = File.OpenRead(pathToLoad); });
@@ -56,7 +60,7 @@ namespace UnityGLTF.Loader
  	        string pathToLoad = Path.Combine(rootPath, fileToLoad);
  	        if (!File.Exists(pathToLoad))
  	        {
- 	            throw new FileNotFoundException("Buffer file not found", fileToLoad);
+ 	            throw new FileNotFoundException("Buffer file not found", pathToLoad);
  	        }
  
  	        LoadedStream = File.OpenRead(pathToLoad);

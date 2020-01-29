@@ -603,6 +603,10 @@ namespace UnityGLTF
                 await _loader.LoadStream(jsonFilePath);
             }
 
+            if (_loader.LoadedStream == null)
+            {
+                Debug.LogError("Error loading " + jsonFilePath);
+            }
             _gltfStream.Stream = _loader.LoadedStream;
             _gltfStream.StartPosition = 0;
 

@@ -30,9 +30,6 @@ namespace UnityGLTF.Loader
             get { return baseAddress.ToString(); }
         }
 
-        public bool TryDDS { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.DXT1);
-        public bool TryETC2 { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.ETC2_RGB);
-        public bool TryASTC { set; get; } = UnityEngine.SystemInfo.SupportsTextureFormat(UnityEngine.TextureFormat.ASTC_5x5);
         public bool Verbose { set; get; }
 
         public WebRequestLoader(string rootUri)
@@ -42,6 +39,11 @@ namespace UnityGLTF.Loader
 #endif
             BaseAddress = rootUri;
 
+        }
+
+        public void Clear()
+        {
+            LoadedStream = null;
         }
 
         public Uri FullPath(string file)
@@ -82,61 +84,20 @@ namespace UnityGLTF.Loader
                 throw new ArgumentNullException(nameof(gltfFilePath));
             }
 
-            string gltfFilePathUpper = gltfFilePath.ToUpper();
-            bool isPngOrJpg = gltfFilePathUpper.EndsWith("PNG") || gltfFilePathUpper.EndsWith("JPG");
-            string updatedPath = gltfFilePath;
-            HttpResponseMessage response = null;
-            if (isPngOrJpg && TryETC2)
+            var response = await GetFile(gltfFilePath);
+
+            if (response.IsSuccessStatusCode)
             {
-                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".etc2.ktx";
-                response = await GetFile(updatedPath);
-                if(!response.IsSuccessStatusCode)
-                {
-                    UnityEngine.Debug.Log("Tried ETC2 for " +  updatedPath + ", but did not find any. So not trying any more");
-                    TryETC2 = false;
-                    response = null;
-                }
-            }
 
-            if (response == null && isPngOrJpg && TryASTC)
-            {
-                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".astc.ktx";
-                response = await GetFile(updatedPath);
-                if(!response.IsSuccessStatusCode)
-                {
-                    UnityEngine.Debug.Log("Tried ASTC for " +  updatedPath + ", but did not find any. So not trying any more");
-                    TryASTC = false;
-                    response = null;
-                }
-            }
-
-            if (response == null && isPngOrJpg && TryDDS)
-            {
-                updatedPath = gltfFilePath.Substring(0, gltfFilePath.Length - 4) + ".DDS";
-                response = await GetFile(updatedPath);
-                if(!response.IsSuccessStatusCode)
-                {
-                    UnityEngine.Debug.Log("Tried DDS for " +  updatedPath + ", but did not find any. So not trying any more");
-                    TryDDS = false;
-                    response = null;
-                }
-            }
-
-            if(response == null)
-            {
-                response = await GetFile(gltfFilePath);
-            }
-
-            response.EnsureSuccessStatusCode();
-
-            // HACK: Download the whole file before returning the stream
-            // Ideally the parsers would wait for data to be available, but they don't.
-            LoadedStream = new MemoryStream((int?)response.Content.Headers.ContentLength ?? 5000);
+                // HACK: Download the whole file before returning the stream
+                // Ideally the parsers would wait for data to be available, but they don't.
+                LoadedStream = new MemoryStream((int?)response.Content.Headers.ContentLength ?? 5000);
 #if WINDOWS_UWP_IGNORE_THIS
             await response.Content.WriteToStreamAsync(LoadedStream.AsOutputStream());
 #else
-            await response.Content.CopyToAsync(LoadedStream);
+                await response.Content.CopyToAsync(LoadedStream);
 #endif
+            }
             response.Dispose();
         }
 
