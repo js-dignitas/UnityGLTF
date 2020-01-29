@@ -14,6 +14,11 @@ namespace UnityGLTF.Loader
 
 		public bool HasSyncLoadMethod { get; private set; }
 
+        public void Clear()
+        {
+            LoadedStream?.Close();
+            LoadedStream = null;
+        }
 		public FileLoader(string rootDirectoryPath)
 		{
 			_rootDirectoryPath = rootDirectoryPath;

@@ -19,6 +19,12 @@ namespace UnityGLTF.Loader
             _rootFolder = rootFolder;
         }
 
+        public void Clear()
+        {
+            LoadedStream?.Close();
+            LoadedStream = null;
+        }
+
         public Task LoadStream(string gltfFilePath)
         {
             if (gltfFilePath == null)

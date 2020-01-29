@@ -13,6 +13,8 @@ namespace UnityGLTF.Loader
 
 		Stream LoadedStream { get; }
 
+        void Clear();
+
 		bool HasSyncLoadMethod { get; }
 	}
 }
