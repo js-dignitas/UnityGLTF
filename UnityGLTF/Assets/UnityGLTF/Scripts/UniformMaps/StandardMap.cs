@@ -367,7 +367,7 @@ namespace UnityGLTF
 		protected virtual void Copy(IUniformMap o)
 		{
 			var other = (StandardMap)o;
-			other._material = _material;
+			//other._material = _material;
 			other._alphaCutoff = _alphaCutoff;
 			other._alphaMode = _alphaMode;
 		}

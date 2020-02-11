@@ -421,6 +421,7 @@ namespace UnityGLTF
                     var def = _gltfRoot.Materials[materialIndex];
                     await ConstructMaterialImageBuffers(def);
                     await ConstructMaterial(def, materialIndex);
+
                 }
             }
             finally
@@ -695,7 +696,9 @@ namespace UnityGLTF
             }
 
             float startTime = Time.time;
+
             await ConstructScene(scene, showSceneObj);
+
             this.processingTime += Time.time - startTime;
 
             if (SceneParent != null)
@@ -1911,7 +1914,6 @@ namespace UnityGLTF
 			IUniformMap mapper;
 			const string specGlossExtName = KHR_materials_pbrSpecularGlossinessExtensionFactory.EXTENSION_NAME;
 
-
 			if (_gltfRoot.ExtensionsUsed != null && _gltfRoot.ExtensionsUsed.Contains(specGlossExtName)
 				&& def.Extensions != null && def.Extensions.ContainsKey(specGlossExtName))
 			{
@@ -2106,8 +2108,8 @@ namespace UnityGLTF
 			    mapper.EmissiveFactor = def.EmissiveFactor.ToUnityColorRaw();
 			}
 
-
 			var vertColorMapper = mapper.Clone();
+
 			vertColorMapper.VertexColorsEnabled = true;
 
 			MaterialCacheData materialWrapper = new MaterialCacheData

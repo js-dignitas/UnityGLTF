@@ -20,7 +20,14 @@ namespace UnityGLTF.Cache
 		/// </summary>
 		public void Unload()
 		{
-			Object.Destroy(LoadedMesh);
-		}
+            if (Application.isEditor)
+            {
+                Object.DestroyImmediate(LoadedMesh);
+            }
+            else
+            {
+                Object.Destroy(LoadedMesh);
+            }
+        }
 	}
 }
