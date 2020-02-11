@@ -16,7 +16,14 @@ namespace UnityGLTF.Cache
 		{
             if (AutoDestroy)
             {
-                Object.Destroy(Texture);
+                if (Application.isEditor)
+                {
+                    Object.DestroyImmediate(Texture);
+                }
+                else
+                {
+                    Object.Destroy(Texture);
+                }
             }
 		}
 	}

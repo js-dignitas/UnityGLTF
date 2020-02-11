@@ -21,13 +21,28 @@ namespace UnityGLTF.Cache
 		{
 			if (UnityMaterial != null)
 			{
-				Object.Destroy(UnityMaterial);
-			}
+                if (Application.isEditor)
+                {
+                    Object.DestroyImmediate(UnityMaterial);
+                }
+                else
+                {
+                    Object.Destroy(UnityMaterial);
+                }
+
+            }
 
 			if (UnityMaterialWithVertexColor != null)
 			{
-				Object.Destroy(UnityMaterialWithVertexColor);
-			}
+                if (Application.isEditor)
+                {
+                    Object.DestroyImmediate(UnityMaterialWithVertexColor);
+                }
+                else
+                {
+                    Object.Destroy(UnityMaterialWithVertexColor);
+                }
+            }
 		}
 	}
 }
