@@ -10,21 +10,28 @@ namespace UnityGLTF.Loader
 	public class FileLoader : ILoader
 	{
 		private string _rootDirectoryPath;
-		public Stream LoadedStream { get; private set; }
 
 		public bool HasSyncLoadMethod { get; private set; }
 
+        public bool GiveBack(Stream stream)
+        {
+            stream.Dispose();
+            stream = null;
+            return true;
+        }
+
         public void Clear()
         {
-            LoadedStream = null;
+            // nothing
         }
+
 		public FileLoader(string rootDirectoryPath)
 		{
 			_rootDirectoryPath = rootDirectoryPath;
 			HasSyncLoadMethod = true;
 		}
 
-		public Task LoadStream(string gltfFilePath)
+		public Task<Stream> LoadStream(string gltfFilePath)
 		{
 			if (gltfFilePath == null)
 			{
@@ -34,7 +41,7 @@ namespace UnityGLTF.Loader
 			return LoadFileStream(_rootDirectoryPath, gltfFilePath);
 		}
 
-		private Task LoadFileStream(string rootPath, string fileToLoad)
+		private Task<Stream> LoadFileStream(string rootPath, string fileToLoad)
 		{
 			string pathToLoad = Path.Combine(rootPath, fileToLoad);
 			if (!File.Exists(pathToLoad))
@@ -42,20 +49,20 @@ namespace UnityGLTF.Loader
 				throw new FileNotFoundException("Buffer file not found", pathToLoad);
 			}
 
-			return Task.Run(() => { LoadedStream = File.OpenRead(pathToLoad); });
+			return Task.Run<Stream>(() => { return File.OpenRead(pathToLoad); });
 		}
 
-		public void LoadStreamSync(string gltfFilePath)
+		public Stream LoadStreamSync(string gltfFilePath)
  	    {
  	        if (gltfFilePath == null)
  	        {
  	            throw new ArgumentNullException("gltfFilePath");
  	        }
  
- 	        LoadFileStreamSync(_rootDirectoryPath, gltfFilePath);
+ 	        return LoadFileStreamSync(_rootDirectoryPath, gltfFilePath);
  	    }
  
- 	    private void LoadFileStreamSync(string rootPath, string fileToLoad)
+ 	    private Stream LoadFileStreamSync(string rootPath, string fileToLoad)
  	    {
  	        string pathToLoad = Path.Combine(rootPath, fileToLoad);
  	        if (!File.Exists(pathToLoad))
@@ -63,7 +70,7 @@ namespace UnityGLTF.Loader
  	            throw new FileNotFoundException("Buffer file not found", pathToLoad);
  	        }
  
- 	        LoadedStream = File.OpenRead(pathToLoad);
+ 	        return File.OpenRead(pathToLoad);
  	    }
 	}
 }

@@ -40,9 +40,9 @@ namespace UnityGLTF
         {
             return HasFlag(Flags.PixelFormat);
         }
-        public void Read(byte[] bytes)
+        public void Read(byte[] bytes, int offset)
         {
-            int i = 4;
+            int i = offset + 4;
             size = BitConverter.ToUInt32(bytes, i); i += 4;
             flags = BitConverter.ToUInt32(bytes, i); i += 4;
             height = BitConverter.ToUInt32(bytes, i); i += 4;
@@ -102,9 +102,9 @@ namespace UnityGLTF
 
      
 
-        public static bool IsDDS(byte[] bytes)
+        public static bool IsDDS(byte[] bytes, int offset)
         {
-            return bytes[4] == 124;
+            return bytes[offset + 4] == 124;
         }
 
         public static int CalcSize(int width, int height, TextureFormat format)
@@ -113,22 +113,22 @@ namespace UnityGLTF
             int size = Math.Max(1, ((width + 3) / 4)) * Math.Max(1, ((height + 3) / 4)) * factor;
             return size;
         }
-        public static Texture2D LoadTextureDXT(byte[] ddsBytes, TextureFormat textureFormat, bool isLinear, bool gpuOnly, bool verbose, int maxDim = 32768)
+        public static Texture2D LoadTextureDXT(byte[] ddsBytes, int offset, int length, TextureFormat textureFormat, bool isLinear, bool gpuOnly, bool verbose, int maxDim = 32768, int mipmapSkip = 0)
         {
-            int skipLevels = 10;
+            int maxSkipLevels = 10;
             if (textureFormat != TextureFormat.DXT1 && textureFormat != TextureFormat.DXT5)
                 throw new Exception("Invalid TextureFormat. Only DXT1 and DXT5 formats are supported by this method.");
 
-            if (!IsDDS(ddsBytes))
+            if (!IsDDS(ddsBytes, offset))
                 throw new Exception("Invalid DDS DXTn texture. Unable to read");  //this header byte should be 124 for DDS image files
 
             Dds dds = new Dds();
-            dds.Read(ddsBytes);
+            dds.Read(ddsBytes, offset);
 
             int height = (int)dds.height;
             int width = (int)dds.width;
 
-            skipLevels = Math.Min(skipLevels, (int)dds.mipmapCount - 1);
+            maxSkipLevels = Math.Min(maxSkipLevels, (int)dds.mipmapCount - 1);
 
 
             if (dds.HasPixelFormat())
@@ -148,7 +148,7 @@ namespace UnityGLTF
 
             int mipImageSizeSkip = 0;
 
-            for(int i = 0; i < skipLevels && height > maxDim && width > maxDim; i++)
+            for(int i = 0; i < maxSkipLevels && ((height > maxDim && width > maxDim) || i < mipmapSkip); i++)
             
             {
                 int mipImageSize = CalcSize(width, height, textureFormat);
@@ -158,8 +158,8 @@ namespace UnityGLTF
             }
 
             int DDS_HEADER_SIZE = 128;
-            byte[] dxtBytes = new byte[ddsBytes.Length - DDS_HEADER_SIZE - mipImageSizeSkip];
-            Buffer.BlockCopy(ddsBytes, DDS_HEADER_SIZE + mipImageSizeSkip, dxtBytes, 0, dxtBytes.Length);
+            byte[] dxtBytes = new byte[length - offset - DDS_HEADER_SIZE - mipImageSizeSkip];
+            Buffer.BlockCopy(ddsBytes, offset + DDS_HEADER_SIZE + mipImageSizeSkip, dxtBytes, 0, dxtBytes.Length);
 
             if (verbose)
             {
