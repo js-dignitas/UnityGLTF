@@ -27,13 +27,11 @@ namespace UnityGLTF
 			var fullPath1 = Application.streamingAssetsPath + Path.DirectorySeparatorChar + asset1Path;
 			ILoader loader1 = new FileLoader(URIHelper.GetDirectoryName(fullPath1));
 
-			await loader0.LoadStream(Path.GetFileName(asset0Path));
-			var asset0Stream = loader0.LoadedStream;
+			Stream asset0Stream = await loader0.LoadStream(Path.GetFileName(asset0Path));
 			GLTFRoot asset0Root;
 			GLTFParser.ParseJson(asset0Stream, out asset0Root);
 
-			await loader1.LoadStream(Path.GetFileName(asset1Path));
-			var asset1Stream = loader1.LoadedStream;
+			Stream asset1Stream = await loader1.LoadStream(Path.GetFileName(asset1Path));
 			GLTFRoot asset1Root;
 			GLTFParser.ParseJson(asset1Stream, out asset1Root);
 

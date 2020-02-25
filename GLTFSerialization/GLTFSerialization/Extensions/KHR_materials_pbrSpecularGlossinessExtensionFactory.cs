@@ -32,8 +32,8 @@ namespace GLTF.Schema
 			{
 #if DEBUG
 				// Broken on il2cpp. Don't ship debug DLLs there.
-				System.Diagnostics.Debug.WriteLine(extensionToken.Value.ToString());
-				System.Diagnostics.Debug.WriteLine(extensionToken.Value.Type);
+				//System.Diagnostics.Debug.WriteLine(extensionToken.Value.ToString());
+				//System.Diagnostics.Debug.WriteLine(extensionToken.Value.Type);
 #endif
 				JToken diffuseFactorToken = extensionToken.Value[DIFFUSE_FACTOR];
 				diffuseFactor = diffuseFactorToken != null ? diffuseFactorToken.DeserializeAsColor() : diffuseFactor;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 #if WINDOWS_UWP_IGNORE_THIS
@@ -17,7 +18,10 @@ namespace UnityGLTF.Loader
 {
     public class WebRequestLoader : ILoader
     {
-        public Stream LoadedStream { get; private set; }
+        Queue<MemoryStream> streamPool = new Queue<MemoryStream>();
+        HashSet<MemoryStream> streamSet = new HashSet<MemoryStream>();
+        HashSet<MemoryStream> created = new HashSet<MemoryStream>();
+        //public Stream LoadedStream { get { return stream; } }
 
         public bool HasSyncLoadMethod => false;
 
@@ -41,9 +45,57 @@ namespace UnityGLTF.Loader
 
         }
 
+        MemoryStream GetNewStream(int size)
+        {
+            if (streamPool.Count > 0)
+            {
+                MemoryStream stream = streamPool.Dequeue();
+                streamSet.Remove(stream);
+                stream.Seek(0, SeekOrigin.Begin);
+                stream.SetLength(0);
+                if (stream.Capacity < size)
+                {
+                    stream.Capacity = size;
+                }
+                return stream;
+            }
+            else
+            {
+                MemoryStream stream = new MemoryStream(size);
+                created.Add(stream);
+                return stream;
+            }
+        }
+        public bool GiveBack(Stream stream)
+        {
+            if (stream != null && stream is MemoryStream)
+            {
+                var mStream = (MemoryStream)stream;
+                if (!streamSet.Contains(mStream) && created.Contains(mStream))
+                {
+                    streamPool.Enqueue(mStream);
+                    streamSet.Add(mStream);
+                    //UnityEngine.Debug.Log($"Giving back a stream, {mStream.Capacity}, streamSet:{streamSet.Count}, created:{created.Count}");
+                    return true;
+                }
+            }
+            return false;
+        }
         public void Clear()
         {
-            LoadedStream = null;
+            try
+            {
+                while(streamPool.Count > 0)
+                {
+                    streamPool.Dequeue().Dispose();
+                }
+                streamSet.Clear();
+                created.Clear();
+            }
+            catch(Exception e)
+            {
+                //
+            }
         }
 
         public Uri FullPath(string file)
@@ -60,10 +112,6 @@ namespace UnityGLTF.Loader
                 response = await httpClient.GetAsync(new Uri(baseAddress, updatedPath));
 #else
                 var tokenSource = new CancellationTokenSource(30000);
-                if (Verbose)
-                {
-                    UnityEngine.Debug.Log(path);
-                }
                 response = await httpClient.GetAsync(new Uri(baseAddress, path), tokenSource.Token);
 #endif
             }
@@ -77,31 +125,45 @@ namespace UnityGLTF.Loader
             }
             return response;
         }
-        public async Task LoadStream(string gltfFilePath)
+        public async Task<Stream> LoadStream(string gltfFilePath)
         {
             if (gltfFilePath == null)
             {
                 throw new ArgumentNullException(nameof(gltfFilePath));
             }
 
+            if (Verbose)
+            {
+                UnityEngine.Debug.Log("Downloading " + gltfFilePath);
+            }
+
+            MemoryStream stream = null;
+
             var response = await GetFile(gltfFilePath);
 
             if (response.IsSuccessStatusCode)
             {
-
                 // HACK: Download the whole file before returning the stream
                 // Ideally the parsers would wait for data to be available, but they don't.
-                LoadedStream = new MemoryStream((int?)response.Content.Headers.ContentLength ?? 5000);
+                int size = (int?)response.Content.Headers.ContentLength + 1024 ?? 5000;
+
+                stream = GetNewStream(size);
+                if (Verbose)
+                {
+                    UnityEngine.Debug.Log("Downloaded " + gltfFilePath + ", size " + response.Content.Headers.ContentLength);
+                }
+                int startCap = stream.Capacity;
 #if WINDOWS_UWP_IGNORE_THIS
             await response.Content.WriteToStreamAsync(LoadedStream.AsOutputStream());
 #else
-                await response.Content.CopyToAsync(LoadedStream);
+                await response.Content.CopyToAsync(stream);
 #endif
             }
             response.Dispose();
+            return stream;
         }
 
-        public void LoadStreamSync(string jsonFilePath)
+        public Stream LoadStreamSync(string jsonFilePath)
         {
             throw new NotImplementedException();
         }

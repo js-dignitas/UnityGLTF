@@ -7,11 +7,13 @@ namespace UnityGLTF.Loader
 {
 	public interface ILoader
 	{
-		Task LoadStream(string relativeFilePath);
+		Task<Stream> LoadStream(string relativeFilePath);
 
-		void LoadStreamSync(string jsonFilePath);
+		Stream LoadStreamSync(string jsonFilePath);
 
-		Stream LoadedStream { get; }
+		//Stream LoadedStream { get; }
+
+        bool GiveBack(Stream stream);
 
         void Clear();
 

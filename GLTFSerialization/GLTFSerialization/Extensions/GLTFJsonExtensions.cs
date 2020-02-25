@@ -97,7 +97,7 @@ namespace GLTF.Extensions
 
 #if DEBUG
 				// Broken on il2cpp. Don't ship debug DLLs there.
-				System.Diagnostics.Debug.WriteLine("textureObject is " + textureObject.Type + " with a value of: " + textureObject[TextureInfo.INDEX].Type + " " + textureObject.ToString());
+				//System.Diagnostics.Debug.WriteLine("textureObject is " + textureObject.Type + " with a value of: " + textureObject[TextureInfo.INDEX].Type + " " + textureObject.ToString());
 #endif
 
 				int indexVal = textureObject[TextureInfo.INDEX].DeserializeAsInt();

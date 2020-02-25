@@ -244,6 +244,7 @@ namespace UnityGLTF
         public bool verbose = false;
         public bool mipmapping = true;
         public int maxImageDim = 32768;
+        public int mipmapSkip = 0;
 
         /// <summary>
         /// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -278,6 +279,7 @@ namespace UnityGLTF
             {
                 Cleanup();
             }
+            _loader?.GiveBack(_gltfStream.Stream);
         }
 
         public GameObject LastLoadedScene
@@ -313,16 +315,16 @@ namespace UnityGLTF
 
                 if (_assetCache == null)
                 {
-                    _assetCache = new AssetCache(_gltfRoot);
+                    _assetCache = new AssetCache(_gltfRoot, _loader);
                 }
 
                 await _LoadScene(sceneIndex, showSceneObj);
             }
             catch (Exception ex)
             {
-                Debug.LogError(ex);
+                Debug.LogException(ex);
                 onLoadComplete?.Invoke(null, ExceptionDispatchInfo.Capture(ex));
-                throw;
+                throw ex;
             }
             finally
             {
@@ -366,7 +368,7 @@ namespace UnityGLTF
 
                 if (_assetCache == null)
                 {
-                    _assetCache = new AssetCache(_gltfRoot);
+                    _assetCache = new AssetCache(_gltfRoot, _loader);
                 }
 
                 await _LoadNode(nodeIndex);
@@ -413,7 +415,7 @@ namespace UnityGLTF
 
                 if (_assetCache == null)
                 {
-                    _assetCache = new AssetCache(_gltfRoot);
+                    _assetCache = new AssetCache(_gltfRoot, _loader);
                 }
 
                 if (_assetCache.MaterialCache[materialIndex] == null)
@@ -449,6 +451,27 @@ namespace UnityGLTF
                 TextureCache = _assetCache.TextureCache,
                 globalCache = globalCache
             };
+            for (int i = 0; i < _assetCache.MeshCache.Length; i++)
+            {
+                for (int j = 0; j < _assetCache.MeshCache[i].Length; j++)
+                {
+                    _assetCache.MeshCache[i][j].MeshAttributes.Clear();
+                }
+            }
+            for (int i = 0; i < _assetCache.MaterialCache.Length; i++)
+            {
+                if (_assetCache.MaterialCache[i] != null)
+                {
+                    _assetCache.MaterialCache[i].GLTFMaterial = null;
+                }
+            }
+            for (int i = 0; i < _assetCache.TextureCache.Length; i++)
+            {
+                if (_assetCache.TextureCache[i] != null)
+                {
+                    _assetCache.TextureCache[i].TextureDefinition = null;
+                }
+            }
         }
 
         private async Task ConstructBufferData(Node node)
@@ -514,7 +537,8 @@ namespace UnityGLTF
                     {
                         if (primitive.Material != null)
                         {
-                            await ConstructMaterialImageBuffers(primitive.Material.Value);
+                            // Delaying this call
+                           // await ConstructMaterialImageBuffers(primitive.Material.Value);
                         }
                     }
                 }
@@ -545,12 +569,14 @@ namespace UnityGLTF
                 if (image.Uri != null && !URIHelper.IsBase64Uri(image.Uri))
                 {
                     bool inGlobalCache = (globalCache != null && globalCache.Contains(image.Uri));
+
+                    Stream stream = null;
                     try
                     {
                         if (!inGlobalCache)
                         {
                             //float startTime = Time.time;
-                            await _loader.LoadStream(image.Uri);
+                            stream = await _loader.LoadStream(image.Uri);
                             //this.downloadingTime += Time.time - startTime;
                         }
                         else
@@ -561,11 +587,18 @@ namespace UnityGLTF
                     }
                     catch (Exception e)
                     {
-                        Debug.LogError(e);
+                        Debug.Log(e.Message);
                     }
                     if (!inGlobalCache)
                     {
-                        _assetCache.ImageStreamCache[sourceId] = _loader.LoadedStream;
+                        // If stream is null, make an empty non readable stream to mark it as attempted
+                        if (stream == null)
+                        {
+                            Debug.Log("LoadStream came back null");
+                            stream = new MemoryStream(0);
+                            stream.Dispose();
+                        }
+                        _assetCache.ImageStreamCache[sourceId] = stream;
                     }
                 }
                 else if (image.Uri == null && image.BufferView != null && _assetCache.BufferCache[image.BufferView.Value.Buffer.Id] == null)
@@ -589,47 +622,19 @@ namespace UnityGLTF
         private async Task LoadJson(string jsonFilePath)
         {
             float startTime = Time.time;
-#if !WINDOWS_UWP_IGNORE_THIS
-            if (IsMultithreaded && _loader.HasSyncLoadMethod)
-            {
-                Thread loadThread = new Thread(() => _loader.LoadStreamSync(jsonFilePath));
-                loadThread.Priority = System.Threading.ThreadPriority.Highest;
-                loadThread.Start();
-                RunCoroutineSync(WaitUntilEnum(new WaitUntil(() => !loadThread.IsAlive)));
-            }
-            else
-#endif
-            {
-                // HACK: Force the coroutine to run synchronously in the editor
-                await _loader.LoadStream(jsonFilePath);
-            }
 
-            if (_loader.LoadedStream == null)
+            _gltfStream.Stream = await _loader.LoadStream(jsonFilePath);
+
+            if (_gltfStream.Stream == null)
             {
-                Debug.LogError("Error loading " + jsonFilePath);
+                Debug.Log("Error loading " + jsonFilePath);
             }
-            _gltfStream.Stream = _loader.LoadedStream;
             _gltfStream.StartPosition = 0;
 
             this.downloadingTime += Time.time - startTime;
 
-#if !WINDOWS_UWP_IGNORE_THIS
-            if (IsMultithreaded)
-            {
-                Thread parseJsonThread = new Thread(() => GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition));
-                parseJsonThread.Priority = System.Threading.ThreadPriority.Highest;
-                parseJsonThread.Start();
-                RunCoroutineSync(WaitUntilEnum(new WaitUntil(() => !parseJsonThread.IsAlive)));
-                if (_gltfRoot == null)
-                {
-                    throw new GLTFLoadException("Failed to parse glTF");
-                }
-            }
-            else
-#endif
-            {
-                GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition);
-            }
+            GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition);
+
         }
 
         private static void RunCoroutineSync(IEnumerator streamEnum)
@@ -730,9 +735,8 @@ namespace UnityGLTF
                 else
                 {
                     float startTime = Time.time;
-                    await _loader.LoadStream(buffer.Uri);
+                    bufferDataStream = await _loader.LoadStream(buffer.Uri);
                     this.downloadingTime += Time.time - startTime;
-                    bufferDataStream = _loader.LoadedStream;
                 }
 
                 _assetCache.BufferCache[bufferIndex] = new BufferCacheData
@@ -742,7 +746,7 @@ namespace UnityGLTF
             }
         }
 
-        protected async Task ConstructImage(GLTFImage image, int imageCacheIndex, bool markGpuOnly, bool isLinear)
+        protected async Task ConstructImage(GLTFTexture texture, int textureIndex, GLTFImage image, int imageCacheIndex, bool markGpuOnly, bool isLinear)
         {
             if (_assetCache.ImageCache[imageCacheIndex] == null)
             {
@@ -769,6 +773,17 @@ namespace UnityGLTF
                     else
                     {
                         stream = _assetCache.ImageStreamCache[imageCacheIndex];
+                        if (stream == null)
+                        {
+                            // Still need to download this
+                            await ConstructImageBuffer(texture, textureIndex);
+                            // Now get it from the cache, if failed, it will be a non readable Stream
+                            stream = _assetCache.ImageStreamCache[imageCacheIndex];
+                        }
+                        if (stream != null && !stream.CanRead)
+                        {
+                            stream = null;
+                        }
                     }
                 }
 
@@ -783,6 +798,10 @@ namespace UnityGLTF
                 if (globalCache != null || stream != null)
                 {
                     await ConstructUnityTexture(stream, markGpuOnly, isLinear, image, imageCacheIndex);
+
+                    // Don't need this stream anymore
+                    _loader.GiveBack(stream);
+                    _assetCache.ImageStreamCache[imageCacheIndex] = null;
                 }
             }
         }
@@ -799,13 +818,13 @@ namespace UnityGLTF
             return soi == 0xd8ff && (marker & 0xe0ff) == 0xe0ff;
         }
 
-        async Task ConstructUnityTextureFromBytes(byte[] buffer, bool markGpuOnly, bool isLinear, GLTFImage image, TextureRef textureRef)
+        async Task ConstructUnityTextureFromBytes(byte[] buffer, int offset, int length, bool markGpuOnly, bool isLinear, GLTFImage image, TextureRef textureRef)
         {
             Texture2D texture = null;
-            if (Dds.IsDDS(buffer))
+            if (Dds.IsDDS(buffer, offset))
             {
                 var format = TextureFormat.DXT1;
-                texture = Dds.LoadTextureDXT(buffer, format, isLinear, markGpuOnly,verbose, maxImageDim);
+                texture = Dds.LoadTextureDXT(buffer, offset, length, format, isLinear, markGpuOnly,verbose, maxImageDim, mipmapSkip);
                 if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadTextureDXT");
             }
             else if (Ktx.IsKTX(buffer))
@@ -872,37 +891,45 @@ namespace UnityGLTF
             if (texture == null)
             {
 
-                if (stream is MemoryStream)
+                if (stream == null)
                 {
-                    using (MemoryStream memoryStream = stream as MemoryStream)
-                    {
-                        byte[] buffer = memoryStream.ToArray();
-                        var texRef = new TextureRef();
-                        await ConstructUnityTextureFromBytes(buffer, markGpuOnly, isLinear, image, texRef);
-                        texture = texRef.texture;
-                    }
+                    texture = new Texture2D(2, 2);
                 }
                 else
                 {
-                    byte[] buffer = new byte[stream.Length];
-
-                    // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
-                    if (stream.Length > int.MaxValue)
+                    if (stream is MemoryStream)
                     {
-                        throw new Exception("Stream is larger than can be copied into byte array");
+                        MemoryStream memoryStream = stream as MemoryStream;
+                        {
+                            // Avoid creating yet another byte array. Use the internal bufer of the stream
+                            byte[] buffer = memoryStream.GetBuffer();
+                            var texRef = new TextureRef();
+                            await ConstructUnityTextureFromBytes(buffer, 0, (int)memoryStream.Length, markGpuOnly, isLinear, image, texRef);
+                            texture = texRef.texture;
+                        }
                     }
-                    stream.Read(buffer, 0, (int)stream.Length);
-
-                    int frame = Time.frameCount;
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("Stream read");
-                    if (Time.frameCount != frame)
+                    else
                     {
-                        //Debug.Log("Frame moved " + (Time.frameCount - frame));
-                    }
+                        byte[] buffer = new byte[stream.Length];
 
-                    var texRef = new TextureRef();
-                    await ConstructUnityTextureFromBytes(buffer, markGpuOnly, isLinear, image, texRef);
-                    texture = texRef.texture;
+                        // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
+                        if (stream.Length > int.MaxValue)
+                        {
+                            throw new Exception("Stream is larger than can be copied into byte array");
+                        }
+                        stream.Read(buffer, 0, (int)stream.Length);
+
+                        int frame = Time.frameCount;
+                        if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("Stream read");
+                        if (Time.frameCount != frame)
+                        {
+                            //Debug.Log("Frame moved " + (Time.frameCount - frame));
+                        }
+
+                        var texRef = new TextureRef();
+                        await ConstructUnityTextureFromBytes(buffer, 0, buffer.Length, markGpuOnly, isLinear, image, texRef);
+                        texture = texRef.texture;
+                    }
                 }
 
                 if (image.Uri != null && globalCache != null)
@@ -1685,6 +1712,10 @@ namespace UnityGLTF
                 if ((shouldUseDefaultMaterial && _defaultLoadedMaterial == null) ||
                     (!shouldUseDefaultMaterial && _assetCache.MaterialCache[materialIndex] == null))
                 {
+                    // TODO: Thinking about putting the buffer construction here to reduce the number of streams 
+                    // that need to stay open when there are many textures
+                    //await ConstructMaterialImageBuffers(materialToLoad);
+
                     await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
                 }
             }
@@ -2134,7 +2165,7 @@ namespace UnityGLTF
 		{
 			return texture.Source.Id;
 		}
-
+/*
 		/// <summary>
 		/// Creates a texture from a glTF texture
 		/// </summary>
@@ -2183,7 +2214,7 @@ namespace UnityGLTF
 		{
 			return LoadTextureAsync(texture, textureIndex, !KeepCPUCopyOfTexture, isLinear);
 		}
-
+*/
 		/// <summary>
 		/// Gets texture that has been loaded from CreateTexture
 		/// </summary>
@@ -2207,11 +2238,18 @@ namespace UnityGLTF
 		protected virtual async Task ConstructTexture(GLTFTexture texture, int textureIndex,
 			bool markGpuOnly, bool isLinear)
 		{
+			if (_assetCache.TextureCache[textureIndex] == null)
+            {
+                _assetCache.TextureCache[textureIndex] = new TextureCacheData
+                {
+                    TextureDefinition = null
+                };
+            }
 			if (_assetCache.TextureCache[textureIndex].Texture == null)
 			{
 				int sourceId = GetTextureSourceId(texture);
 				GLTFImage image = _gltfRoot.Images[sourceId];
-				await ConstructImage(image, sourceId, markGpuOnly, isLinear);
+				await ConstructImage(texture, textureIndex, image, sourceId, markGpuOnly, isLinear);
 
 				var source = _assetCache.ImageCache[sourceId];
 				FilterMode desiredFilterMode;
@@ -2277,23 +2315,6 @@ namespace UnityGLTF
 					_assetCache.TextureCache[textureIndex].Texture = unityTexture;
 				}
 			}
-		}
-
-		protected virtual async Task ConstructImageFromGLB(GLTFImage image, int imageCacheIndex)
-		{
-			//var texture = new Texture2D(0, 0);
-            var bufferView = image.BufferView.Value;
-			var data = new byte[bufferView.ByteLength];
-
-			var bufferContents = _assetCache.BufferCache[bufferView.Buffer.Id];
-			bufferContents.Stream.Position = bufferView.ByteOffset + bufferContents.ChunkOffset;
-			bufferContents.Stream.Read(data, 0, data.Length);
-
-            var texRef = new TextureRef();
-            await ConstructUnityTextureFromBytes(data, !KeepCPUCopyOfTexture, true, image, texRef);
-
-            _assetCache.ImageCache[imageCacheIndex] = texRef.texture;
-
 		}
 
 		protected virtual BufferCacheData ConstructBufferFromGLB(int bufferIndex)

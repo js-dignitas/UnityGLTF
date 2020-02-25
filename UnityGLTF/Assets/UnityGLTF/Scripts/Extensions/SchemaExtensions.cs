@@ -263,6 +263,10 @@ namespace UnityGLTF.Extensions
             numericArrayUnity.AsVec2s = inVecArr;
             return numericArrayUnity.AsUnityVec2s;
             /*
+            if (inVecArr == null)
+            {
+                return null;
+            }
             Vector2[] outVecArr = new Vector2[inVecArr.Length];
             for (int i = 0; i < inVecArr.Length; ++i)
             {
@@ -319,9 +323,12 @@ namespace UnityGLTF.Extensions
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsVec3s = inVecArr;
             return numericArrayUnity.AsUnityVec3s;
-
             /*
-			Vector3[] outVecArr = new Vector3[inVecArr.Length];
+            if (inVecArr == null)
+            {
+                return null;
+            }
+            Vector3[] outVecArr = new Vector3[inVecArr.Length];
 			for (int i = 0; i < inVecArr.Length; ++i)
 			{
 				outVecArr[i] = inVecArr[i].ToUnityVector3Raw();
@@ -341,6 +348,10 @@ namespace UnityGLTF.Extensions
             numericArrayUnity.AsVec4s = inVecArr;
             return numericArrayUnity.AsUnityVec4s;
             /*
+            if (inVecArr == null)
+            {
+                return null;
+            }
             Vector4[] outVecArr = new Vector4[inVecArr.Length];
 			for (int i = 0; i < inVecArr.Length; ++i)
 			{
@@ -365,7 +376,12 @@ namespace UnityGLTF.Extensions
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsColors = inColorArr;
             return numericArrayUnity.AsUnityColors;
+
             /*
+            if (inColorArr == null)
+            {
+                return null;
+            }
             UnityEngine.Color[] outColorArr = new UnityEngine.Color[inColorArr.Length];
 			for (int i = 0; i < inColorArr.Length; ++i)
 			{
@@ -380,7 +396,12 @@ namespace UnityGLTF.Extensions
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsUInts = uintArr;
             return numericArrayUnity.AsInts;
+
             /*
+            if (uintArr == null)
+            {
+                return null;
+            }
 			int[] intArr = new int[uintArr.Length];
 			for (int i = 0; i < uintArr.Length; ++i)
 			{

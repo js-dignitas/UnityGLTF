@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using GLTF.Schema;
+using UnityGLTF.Loader;
 
 namespace UnityGLTF.Cache
 {
@@ -51,12 +52,15 @@ namespace UnityGLTF.Cache
 		/// </summary>
 		public GameObject[] NodeCache { get; private set; }
 
+        ILoader loader;
+
 		/// <summary>
 		/// Creates an asset cache which caches objects used in scene
 		/// </summary>
 		/// <param name="root">A glTF root whose assets will eventually be cached here</param>
-		public AssetCache(GLTFRoot root)
+		public AssetCache(GLTFRoot root, ILoader loader)
 		{
+            this.loader = loader;
 			ImageCache = new Texture2D[root.Images?.Count ?? 0];
 			ImageStreamCache = new Stream[ImageCache.Length];
 			TextureCache = new TextureCacheData[root.Textures?.Count ?? 0];
@@ -86,14 +90,13 @@ namespace UnityGLTF.Cache
 					{
 						if (bufferCacheData.Stream != null)
 						{
-#if !WINDOWS_UWP
-							bufferCacheData.Stream.Close();
-#else
-							bufferCacheData.Stream.Dispose();
-#endif
+                            if (!loader.GiveBack(bufferCacheData.Stream))
+                            {
+                                bufferCacheData.Stream.Dispose();
+                                bufferCacheData.Stream = null;
+                            }
                         }
-
-                        bufferCacheData.Dispose();
+                        //bufferCacheData.Dispose();
 					}
 				}
 				BufferCache = null;
@@ -101,6 +104,7 @@ namespace UnityGLTF.Cache
 
 			MeshCache = null;
 			AnimationCache = null;
+            loader = null;
 		}
 	}
 }
