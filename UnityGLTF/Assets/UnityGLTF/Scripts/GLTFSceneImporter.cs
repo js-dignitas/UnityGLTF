@@ -245,7 +245,6 @@ namespace UnityGLTF
         public bool mipmapping = true;
         public int maxImageDim = 32768;
         public int mipmapSkip = 0;
-        public Texture2D defaultTexture = new Texture2D(2, 2);
 
         /// <summary>
         /// Creates a GLTFSceneBuilder object which will be able to construct a scene based off a url
@@ -452,6 +451,21 @@ namespace UnityGLTF
                 TextureCache = _assetCache.TextureCache,
                 globalCache = globalCache
             };
+            for (int i = 0; i < _assetCache.MeshCache.Length; i++)
+            {
+                for (int j = 0; j < _assetCache.MeshCache[i].Length; j++)
+                {
+                    _assetCache.MeshCache[i][j].MeshAttributes.Clear();
+                }
+            }
+            for (int i = 0; i < _assetCache.MaterialCache.Length; i++)
+            {
+                _assetCache.MaterialCache[i].GLTFMaterial = null;
+            }
+            for (int i = 0; i < _assetCache.TextureCache.Length; i++)
+            {
+                _assetCache.TextureCache[i].TextureDefinition = null;
+            }
         }
 
         private async Task ConstructBufferData(Node node)
