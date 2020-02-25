@@ -259,11 +259,10 @@ namespace UnityGLTF.Extensions
 
         public static Vector2[] ToUnityVector2Raw(this GLTF.Math.Vector2[] inVecArr)
         {
-            /*
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsVec2s = inVecArr;
             return numericArrayUnity.AsUnityVec2s;
-            */
+            /*
             if (inVecArr == null)
             {
                 return null;
@@ -274,6 +273,7 @@ namespace UnityGLTF.Extensions
                 outVecArr[i] = inVecArr[i].ToUnityVector2Raw();
             }
             return outVecArr;
+            */
         }
 
         public static Vector3 ToUnityVector3Raw(this GLTF.Math.Vector3 vec3)
@@ -320,11 +320,10 @@ namespace UnityGLTF.Extensions
         }
 		public static Vector3[] ToUnityVector3Raw(this GLTF.Math.Vector3[] inVecArr)
 		{
-            /*
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsVec3s = inVecArr;
             return numericArrayUnity.AsUnityVec3s;
-            */
+            /*
             if (inVecArr == null)
             {
                 return null;
@@ -335,6 +334,7 @@ namespace UnityGLTF.Extensions
 				outVecArr[i] = inVecArr[i].ToUnityVector3Raw();
 			}
 			return outVecArr;
+            */
         }
 
 		public static Vector4 ToUnityVector4Raw(this GLTF.Math.Vector4 vec4)
@@ -344,11 +344,10 @@ namespace UnityGLTF.Extensions
 
 		public static Vector4[] ToUnityVector4Raw(this GLTF.Math.Vector4[] inVecArr)
 		{
-            /*
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsVec4s = inVecArr;
             return numericArrayUnity.AsUnityVec4s;
-            */
+            /*
             if (inVecArr == null)
             {
                 return null;
@@ -359,6 +358,7 @@ namespace UnityGLTF.Extensions
 				outVecArr[i] = inVecArr[i].ToUnityVector4Raw();
 			}
 			return outVecArr;
+            */
 		}
 
 		public static UnityEngine.Color ToUnityColorRaw(this GLTF.Math.Color color)
@@ -373,11 +373,11 @@ namespace UnityGLTF.Extensions
 
 		public static UnityEngine.Color[] ToUnityColorRaw(this GLTF.Math.Color[] inColorArr)
 		{
-            /*
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsColors = inColorArr;
             return numericArrayUnity.AsUnityColors;
-            */
+
+            /*
             if (inColorArr == null)
             {
                 return null;
@@ -388,15 +388,16 @@ namespace UnityGLTF.Extensions
 				outColorArr[i] = inColorArr[i].ToUnityColorRaw();
 			}
 			return outColorArr;
+            */
 		}
 
 		public static int[] ToIntArrayRaw(this uint[] uintArr)
 		{
-            /*
             NumericArrayUnity numericArrayUnity = new NumericArrayUnity();
             numericArrayUnity.AsUInts = uintArr;
             return numericArrayUnity.AsInts;
-            */
+
+            /*
             if (uintArr == null)
             {
                 return null;
@@ -410,6 +411,7 @@ namespace UnityGLTF.Extensions
 			}
 
 			return intArr;
+            */
         }
 
 		public static GLTF.Math.Quaternion ToGltfQuaternionRaw(this Quaternion unityQuat)

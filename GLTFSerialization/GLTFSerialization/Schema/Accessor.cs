@@ -375,36 +375,37 @@ namespace GLTF.Schema
             GetTypeDetails(ComponentType, out componentSize, out maxValue);
 
             uint stride = BufferView.Value.ByteStride > 0 ? BufferView.Value.ByteStride : componentSize;
-            /*
-                        if (stride == componentSize && componentSize == sizeof(uint) && ComponentType != GLTFComponentType.Float)
-                        {
-                            GCHandle handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
-                            try
-                            {
-                                IntPtr ptr = handle.AddrOfPinnedObject();
-                                Marshal.Copy(bufferViewData, (int)totalByteOffset, ptr, (int)(Count * stride));
-                            }
-                            finally
-                            {
-                                //if (handle.IsAllocated)
-                                {
-                                    handle.Free();
-                                }
-                            }
-                        }
-                        */
-            if (ComponentType == GLTFComponentType.Float)
+            if (stride == componentSize && componentSize == sizeof(uint) && ComponentType != GLTFComponentType.Float)
             {
-                for (uint idx = 0; idx < Count; idx++)
+                GCHandle handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
+                try
                 {
-                    arr[idx] = (uint)System.Math.Floor(GetFloatElement(bufferViewData, totalByteOffset + idx * stride));
+                    IntPtr ptr = handle.AddrOfPinnedObject();
+                    Marshal.Copy(bufferViewData, (int)totalByteOffset, ptr, (int)(Count * stride));
+                }
+                finally
+                {
+                    //if (handle.IsAllocated)
+                    {
+                        handle.Free();
+                    }
                 }
             }
             else
-            { 
-                for (uint idx = 0; idx < Count; idx++)
+            {
+                if (ComponentType == GLTFComponentType.Float)
                 {
-                    arr[idx] = GetUnsignedDiscreteElement(bufferViewData, totalByteOffset + idx * stride, ComponentType);
+                    for (uint idx = 0; idx < Count; idx++)
+                    {
+                        arr[idx] = (uint)System.Math.Floor(GetFloatElement(bufferViewData, totalByteOffset + idx * stride));
+                    }
+                }
+                else
+                {
+                    for (uint idx = 0; idx < Count; idx++)
+                    {
+                        arr[idx] = GetUnsignedDiscreteElement(bufferViewData, totalByteOffset + idx * stride, ComponentType);
+                    }
                 }
             }
 
@@ -471,7 +472,6 @@ namespace GLTF.Schema
             uint stride = BufferView.Value.ByteStride > 0 ? BufferView.Value.ByteStride : componentSize * 2;
             if (normalizeIntValues) maxValue = 1;
             var arr = new Vector2[Count];
-/*
             if (stride == componentSize * 2 && componentSize == sizeof(float) && ComponentType == GLTFComponentType.Float)
             {
                 GCHandle handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
@@ -489,7 +489,6 @@ namespace GLTF.Schema
                 }
             }
             else
-            */
             {
                 for (uint idx = 0; idx < Count; idx++)
                 {
@@ -533,7 +532,6 @@ namespace GLTF.Schema
 
             var arr = new Vector3[Count];
             contents.AsVec3s = arr;
-/*
             if (stride == componentSize * 3 && componentSize == sizeof(float) && ComponentType == GLTFComponentType.Float)
             {
                 GCHandle handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
@@ -551,7 +549,6 @@ namespace GLTF.Schema
                 }
             }
             else
-            */
             {
                 for (uint idx = 0; idx < Count; idx++)
                 {
@@ -656,7 +653,6 @@ namespace GLTF.Schema
 
             uint stride = (uint)(BufferView.Value.ByteStride > 0 ? BufferView.Value.ByteStride : componentSize * (Type == GLTFAccessorAttributeType.VEC3 ? 3 : 4));
             var arr = new Color[Count];
-/*
             if (stride == componentSize * 4 && componentSize == sizeof(float) && ComponentType == GLTFComponentType.Float && Type == GLTFAccessorAttributeType.VEC4)
             {
                 GCHandle handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
@@ -674,7 +670,6 @@ namespace GLTF.Schema
                 }
             }
             else
-            */
             {
                 // Profiled using GCAlloc to put the data in a Vector3 array then looping to copy elementwise, but it doesn't improve performance
                 if (ComponentType == GLTFComponentType.Float)
