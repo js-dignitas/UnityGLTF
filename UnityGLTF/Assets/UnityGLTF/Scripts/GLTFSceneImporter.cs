@@ -322,9 +322,9 @@ namespace UnityGLTF
             }
             catch (Exception ex)
             {
-                Debug.Log(ex);
+                Debug.LogException(ex);
                 onLoadComplete?.Invoke(null, ExceptionDispatchInfo.Capture(ex));
-                throw;
+                throw ex;
             }
             finally
             {
@@ -460,11 +460,17 @@ namespace UnityGLTF
             }
             for (int i = 0; i < _assetCache.MaterialCache.Length; i++)
             {
-                _assetCache.MaterialCache[i].GLTFMaterial = null;
+                if (_assetCache.MaterialCache[i] != null)
+                {
+                    _assetCache.MaterialCache[i].GLTFMaterial = null;
+                }
             }
             for (int i = 0; i < _assetCache.TextureCache.Length; i++)
             {
-                _assetCache.TextureCache[i].TextureDefinition = null;
+                if (_assetCache.TextureCache[i] != null)
+                {
+                    _assetCache.TextureCache[i].TextureDefinition = null;
+                }
             }
         }
 
