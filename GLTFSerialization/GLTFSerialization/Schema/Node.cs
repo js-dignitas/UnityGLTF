@@ -147,8 +147,8 @@ namespace GLTF.Schema
 						var list = reader.ReadDoubleList();
 						// gltf has column ordered matricies
 						var mat = new Matrix4x4(
-							(float)list[0],  (float)list[1],  (float)list[2],  (float)list[3], (float)list[4],  (float)list[5],  (float)list[6],  (float)list[7],
-							(float)list[8],  (float)list[9],  (float)list[10], (float)list[11], (float)list[12], (float)list[13], (float)list[14], (float)list[15]
+							list[0],  list[1],  list[2],  list[3], list[4],  list[5],  list[6],  list[7],
+							list[8],  list[9],  list[10], list[11], list[12], list[13], list[14], list[15]
 							);
 
 						node.Matrix = mat;
@@ -211,10 +211,10 @@ namespace GLTF.Schema
 			{
 				writer.WritePropertyName("matrix");
 				writer.WriteStartArray();
-				writer.WriteValue(Matrix.M11); writer.WriteValue(Matrix.M21); writer.WriteValue(Matrix.M31); writer.WriteValue(Matrix.M41);
-				writer.WriteValue(Matrix.M12); writer.WriteValue(Matrix.M22); writer.WriteValue(Matrix.M32); writer.WriteValue(Matrix.M42);
-				writer.WriteValue(Matrix.M13); writer.WriteValue(Matrix.M23); writer.WriteValue(Matrix.M33); writer.WriteValue(Matrix.M43);
-				writer.WriteValue(Matrix.M14); writer.WriteValue(Matrix.M24); writer.WriteValue(Matrix.M34); writer.WriteValue(Matrix.M44);
+				writer.WriteValue(Matrix.M11d); writer.WriteValue(Matrix.M21d); writer.WriteValue(Matrix.M31d); writer.WriteValue(Matrix.M41d);
+				writer.WriteValue(Matrix.M12d); writer.WriteValue(Matrix.M22d); writer.WriteValue(Matrix.M32d); writer.WriteValue(Matrix.M42d);
+				writer.WriteValue(Matrix.M13d); writer.WriteValue(Matrix.M23d); writer.WriteValue(Matrix.M33d); writer.WriteValue(Matrix.M43d);
+				writer.WriteValue(Matrix.M14d); writer.WriteValue(Matrix.M24d); writer.WriteValue(Matrix.M34d); writer.WriteValue(Matrix.M44d);
 				writer.WriteEndArray();
 			}
 

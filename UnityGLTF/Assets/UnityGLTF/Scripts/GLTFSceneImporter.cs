@@ -287,6 +287,11 @@ namespace UnityGLTF
             get { return _lastLoadedScene; }
         }
 
+        public GLTFRoot GLTFRoot
+        {
+            get { return _gltfRoot; }
+        }
+
         /// <summary>
         /// Loads a glTF Scene into the LastLoadedScene field
         /// </summary>
@@ -324,7 +329,6 @@ namespace UnityGLTF
             {
                 Debug.LogException(ex);
                 onLoadComplete?.Invoke(null, ExceptionDispatchInfo.Capture(ex));
-                throw ex;
             }
             finally
             {
@@ -864,7 +868,6 @@ namespace UnityGLTF
                 if (doTextureCompression)
                 {
                     texture.Compress(true);
-                    if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("Texture Compress");
                     if (verbose)
                     {
                         var raw = texture.GetRawTextureData();
@@ -1337,7 +1340,7 @@ namespace UnityGLTF
             //sceneObj.hideFlags = HideFlags.DontSaveInEditor;
 			sceneObj.SetActive(showSceneObj);
 
-			Transform[] nodeTransforms = new Transform[scene.Nodes.Count];
+			//Transform[] nodeTransforms = new Transform[scene.Nodes.Count];
 			for (int i = 0; i < scene.Nodes.Count; ++i)
 			{
 				NodeId node = scene.Nodes[i];
@@ -1345,7 +1348,7 @@ namespace UnityGLTF
 				GameObject nodeObj = _assetCache.NodeCache[node.Id];
 				nodeObj.transform.SetParent(sceneObj.transform, false);
                 nodeObj.SetActive(true);
-				nodeTransforms[i] = nodeObj.transform;
+				//nodeTransforms[i] = nodeObj.transform;
 			}
 
 			if (_gltfRoot.Animations != null && _gltfRoot.Animations.Count > 0)

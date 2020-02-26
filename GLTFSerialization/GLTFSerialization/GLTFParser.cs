@@ -147,7 +147,7 @@ namespace GLTF
 			GLBHeader header = ParseGLBHeader(stream);  // 4, 8
 			if (header.Version != 2)
 			{
-				throw new GLTFHeaderInvalidException("Unsupported glTF version");
+				throw new GLTFHeaderInvalidException("Unsupported glTF version " + header.Version);
 			};
 
 			if (header.FileLength != (stream.Length - startPosition))
