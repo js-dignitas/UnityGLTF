@@ -538,7 +538,7 @@ namespace UnityGLTF
                         if (primitive.Material != null)
                         {
                             // Delaying this call
-                           // await ConstructMaterialImageBuffers(primitive.Material.Value);
+                            //await ConstructMaterialImageBuffers(primitive.Material.Value);
                         }
                     }
                 }
@@ -1714,9 +1714,16 @@ namespace UnityGLTF
                 {
                     // TODO: Thinking about putting the buffer construction here to reduce the number of streams 
                     // that need to stay open when there are many textures
-                    //await ConstructMaterialImageBuffers(materialToLoad);
+                    await ConstructMaterialImageBuffers(materialToLoad);
 
-                    await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
+                    try
+                    {
+                        await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
+                    }
+                    catch(Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
                 }
             }
 		}
@@ -1836,7 +1843,7 @@ namespace UnityGLTF
 				if (specGlossDef.DiffuseTexture != null)
 				{
 					var textureId = specGlossDef.DiffuseTexture.Index;
-					//tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
 				}
 
 				if (specGlossDef.SpecularGlossinessTexture != null)
