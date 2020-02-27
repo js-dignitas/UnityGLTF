@@ -587,7 +587,7 @@ namespace UnityGLTF
                     }
                     catch (Exception e)
                     {
-                        Debug.Log(e.Message);
+                        Debug.LogException(e);
                     }
                     if (!inGlobalCache)
                     {
@@ -1781,7 +1781,7 @@ namespace UnityGLTF
 			};
 		}
 
-		protected virtual Task ConstructMaterialImageBuffers(GLTFMaterial def)
+		protected virtual async Task ConstructMaterialImageBuffers(GLTFMaterial def)
 		{
 			var tasks = new List<Task>(8);
 			if (def.PbrMetallicRoughness != null)
@@ -1853,7 +1853,10 @@ namespace UnityGLTF
 				}
 			}
 
-			return Task.WhenAll(tasks);
+			foreach(var task in tasks)
+            {
+                await task;
+            }
 		}
 
         protected async Task ConstructUnityMesh(MeshConstructionData meshConstructionData, int meshId, int primitiveIndex, UnityMeshData unityMeshData)
