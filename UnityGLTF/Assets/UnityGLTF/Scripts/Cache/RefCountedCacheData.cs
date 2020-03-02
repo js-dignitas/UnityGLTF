@@ -59,6 +59,7 @@ namespace UnityGLTF.Cache
 				throw new InvalidOperationException("Cannot decrease the ref count on disposed cache data.");
 			}
 
+            bool timeToDestroy = false;
 			lock (_refCountLock)
 			{
 				if (_refCount <= 0)
@@ -67,9 +68,10 @@ namespace UnityGLTF.Cache
 				}
 
 				_refCount--;
+                timeToDestroy = _refCount <= 0;
 			}
 
-			if (_refCount <= 0)
+			if (timeToDestroy)
 			{
 				DestroyCachedData();
 			}
