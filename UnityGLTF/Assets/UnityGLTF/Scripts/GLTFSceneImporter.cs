@@ -542,7 +542,7 @@ namespace UnityGLTF
                         if (primitive.Material != null)
                         {
                             // Delaying this call
-                           // await ConstructMaterialImageBuffers(primitive.Material.Value);
+                            //await ConstructMaterialImageBuffers(primitive.Material.Value);
                         }
                     }
                 }
@@ -591,7 +591,7 @@ namespace UnityGLTF
                     }
                     catch (Exception e)
                     {
-                        Debug.Log(e.Message);
+                        Debug.LogException(e);
                     }
                     if (!inGlobalCache)
                     {
@@ -1717,9 +1717,16 @@ namespace UnityGLTF
                 {
                     // TODO: Thinking about putting the buffer construction here to reduce the number of streams 
                     // that need to stay open when there are many textures
-                    //await ConstructMaterialImageBuffers(materialToLoad);
+                    await ConstructMaterialImageBuffers(materialToLoad);
 
-                    await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
+                    try
+                    {
+                        await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
+                    }
+                    catch(Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
                 }
             }
 		}
@@ -1777,7 +1784,7 @@ namespace UnityGLTF
 			};
 		}
 
-		protected virtual Task ConstructMaterialImageBuffers(GLTFMaterial def)
+		protected virtual async Task ConstructMaterialImageBuffers(GLTFMaterial def)
 		{
 			var tasks = new List<Task>(8);
 			if (def.PbrMetallicRoughness != null)
@@ -1839,7 +1846,7 @@ namespace UnityGLTF
 				if (specGlossDef.DiffuseTexture != null)
 				{
 					var textureId = specGlossDef.DiffuseTexture.Index;
-					//tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
 				}
 
 				if (specGlossDef.SpecularGlossinessTexture != null)
@@ -1849,7 +1856,10 @@ namespace UnityGLTF
 				}
 			}
 
-			return Task.WhenAll(tasks);
+			foreach(var task in tasks)
+            {
+                await task;
+            }
 		}
 
         protected async Task ConstructUnityMesh(MeshConstructionData meshConstructionData, int meshId, int primitiveIndex, UnityMeshData unityMeshData)
