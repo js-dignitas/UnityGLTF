@@ -1650,7 +1650,9 @@ namespace UnityGLTF
                             MeshColliderCookingOptions.CookForFasterSimulation 
                             |MeshColliderCookingOptions.EnableMeshCleaning 
                             |MeshColliderCookingOptions.WeldColocatedVertices 
+#if UNITY_2019_3_OR_NEWER
                             |MeshColliderCookingOptions.UseFastMidphase
+#endif
                             ;
 						meshCollider.sharedMesh = curMesh;
 						break;
@@ -1933,11 +1935,13 @@ namespace UnityGLTF
 				mesh.UploadMeshData(true);
 			}
 
+#if UNITY_2019_3_OR_NEWER
             if (this.Collider == ColliderType.Mesh)
             {
                 int unityMeshId = mesh.GetInstanceID();
                 await Task.Run(() => Physics.BakeMesh(unityMeshId, false));
             }
+#endif
 
 			_assetCache.MeshCache[meshId][primitiveIndex].LoadedMesh = mesh;
 		}
