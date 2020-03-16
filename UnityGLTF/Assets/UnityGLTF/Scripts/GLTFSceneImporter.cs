@@ -165,7 +165,7 @@ namespace UnityGLTF
         {
             get
             {
-                return Application.isEditor ? false : _isMultithreaded;
+                return _isMultithreaded;
             }
             set
             {
@@ -637,7 +637,7 @@ namespace UnityGLTF
 
             this.downloadingTime += Time.time - startTime;
 
-            GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition);
+            await Task.Run(() => GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition));
 
         }
 
@@ -1371,6 +1371,7 @@ namespace UnityGLTF
 
 			CreatedObject = sceneObj;
 			InitializeGltfTopLevelObject();
+          
 		}
 
 
@@ -1647,12 +1648,16 @@ namespace UnityGLTF
 					case ColliderType.Mesh:
 						var meshCollider = primitiveObj.AddComponent<MeshCollider>();
                         collider = meshCollider;
-						meshCollider.sharedMesh = curMesh;
 
-                        meshCollider.cookingOptions = 
-                            MeshColliderCookingOptions.CookForFasterSimulation |
-                            MeshColliderCookingOptions.EnableMeshCleaning |
-                            MeshColliderCookingOptions.WeldColocatedVertices;
+                        meshCollider.cookingOptions =
+                            MeshColliderCookingOptions.CookForFasterSimulation 
+                            |MeshColliderCookingOptions.EnableMeshCleaning 
+                            |MeshColliderCookingOptions.WeldColocatedVertices 
+#if UNITY_2019_3_OR_NEWER
+                            |MeshColliderCookingOptions.UseFastMidphase
+#endif
+                            ;
+						meshCollider.sharedMesh = curMesh;
 						break;
 					case ColliderType.MeshConvex:
 						var meshConvexCollider = primitiveObj.AddComponent<MeshCollider>();
@@ -1704,7 +1709,7 @@ namespace UnityGLTF
 					unityMeshData = ConvertAccessorsToUnityTypes(meshConstructionData);
 				}
 
-				await ConstructUnityMesh(meshConstructionData, meshID, primitiveIndex, unityMeshData);
+                await ConstructUnityMesh(meshConstructionData, meshID, primitiveIndex, unityMeshData);
 			}
 
 			bool shouldUseDefaultMaterial = primitive.Material == null;
@@ -1932,6 +1937,14 @@ namespace UnityGLTF
 			{
 				mesh.UploadMeshData(true);
 			}
+
+#if UNITY_2019_3_OR_NEWER
+            if (this.Collider == ColliderType.Mesh)
+            {
+                int unityMeshId = mesh.GetInstanceID();
+                await Task.Run(() => Physics.BakeMesh(unityMeshId, false));
+            }
+#endif
 
 			_assetCache.MeshCache[meshId][primitiveIndex].LoadedMesh = mesh;
 		}
