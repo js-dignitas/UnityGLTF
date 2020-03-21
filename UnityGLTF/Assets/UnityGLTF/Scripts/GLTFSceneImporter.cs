@@ -780,6 +780,7 @@ namespace UnityGLTF
                         if (stream == null)
                         {
                             // Still need to download this
+                            Debug.Log($"Downloading {_gltfRoot.Images[GetTextureSourceId(texture)].Uri} in ConstructImage");
                             await ConstructImageBuffer(texture, textureIndex);
                             // Now get it from the cache, if failed, it will be a non readable Stream
                             stream = _assetCache.ImageStreamCache[imageCacheIndex];
@@ -828,7 +829,7 @@ namespace UnityGLTF
             if (Dds.IsDDS(buffer, offset))
             {
                 var format = TextureFormat.DXT1;
-                texture = Dds.LoadTextureDXT(buffer, offset, length, format, isLinear, markGpuOnly,verbose, maxImageDim, mipmapSkip);
+                texture = Dds.LoadTextureDXT(buffer, offset, length, format, isLinear, markGpuOnly, verbose, maxImageDim, mipmapSkip);
                 if (_asyncCoroutineHelper != null) await _asyncCoroutineHelper.YieldOnTimeout("LoadTextureDXT");
             }
             else if (Ktx.IsKTX(buffer))
@@ -879,7 +880,7 @@ namespace UnityGLTF
         }
 
         protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool isLinear, GLTFImage image, int imageCacheIndex)
-		{
+        {
             Texture2D texture = null;
             if (image.Uri != null && globalCache != null)
             {
@@ -949,458 +950,458 @@ namespace UnityGLTF
             }
 
             _assetCache.ImageCache[imageCacheIndex] = texture;
-		}
+        }
 
-		protected virtual async Task ConstructMeshAttributes(MeshPrimitive primitive, int meshID, int primitiveIndex)
-		{
-			if (_assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes.Count == 0)
-			{
-				Dictionary<string, AttributeAccessor> attributeAccessors = new Dictionary<string, AttributeAccessor>(primitive.Attributes.Count + 1);
-				foreach (var attributePair in primitive.Attributes)
-				{
-					BufferId bufferIdPair = attributePair.Value.Value.BufferView.Value.Buffer;
-					GLTFBuffer buffer = bufferIdPair.Value;
-					int bufferId = bufferIdPair.Id;
+        protected virtual async Task ConstructMeshAttributes(MeshPrimitive primitive, int meshID, int primitiveIndex)
+        {
+            if (_assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes.Count == 0)
+            {
+                Dictionary<string, AttributeAccessor> attributeAccessors = new Dictionary<string, AttributeAccessor>(primitive.Attributes.Count + 1);
+                foreach (var attributePair in primitive.Attributes)
+                {
+                    BufferId bufferIdPair = attributePair.Value.Value.BufferView.Value.Buffer;
+                    GLTFBuffer buffer = bufferIdPair.Value;
+                    int bufferId = bufferIdPair.Id;
 
-					// on cache miss, load the buffer
-					if (_assetCache.BufferCache[bufferId] == null)
-					{
-						await ConstructBuffer(buffer, bufferId);
-					}
+                    // on cache miss, load the buffer
+                    if (_assetCache.BufferCache[bufferId] == null)
+                    {
+                        await ConstructBuffer(buffer, bufferId);
+                    }
 
-					AttributeAccessor attributeAccessor = new AttributeAccessor
-					{
-						AccessorId = attributePair.Value,
-						Stream = _assetCache.BufferCache[bufferId].Stream,
-						Offset = (uint)_assetCache.BufferCache[bufferId].ChunkOffset
-					};
+                    AttributeAccessor attributeAccessor = new AttributeAccessor
+                    {
+                        AccessorId = attributePair.Value,
+                        Stream = _assetCache.BufferCache[bufferId].Stream,
+                        Offset = (uint)_assetCache.BufferCache[bufferId].ChunkOffset
+                    };
 
-					attributeAccessors[attributePair.Key] = attributeAccessor;
-				}
+                    attributeAccessors[attributePair.Key] = attributeAccessor;
+                }
 
-				if (primitive.Indices != null)
-				{
-					int bufferId = primitive.Indices.Value.BufferView.Value.Buffer.Id;
+                if (primitive.Indices != null)
+                {
+                    int bufferId = primitive.Indices.Value.BufferView.Value.Buffer.Id;
 
-					if (_assetCache.BufferCache[bufferId] == null)
-					{
-						await ConstructBuffer(primitive.Indices.Value.BufferView.Value.Buffer.Value, bufferId);
-					}
+                    if (_assetCache.BufferCache[bufferId] == null)
+                    {
+                        await ConstructBuffer(primitive.Indices.Value.BufferView.Value.Buffer.Value, bufferId);
+                    }
 
-					AttributeAccessor indexBuilder = new AttributeAccessor
-					{
-						AccessorId = primitive.Indices,
-						Stream = _assetCache.BufferCache[bufferId].Stream,
-						Offset = (uint)_assetCache.BufferCache[bufferId].ChunkOffset
-					};
+                    AttributeAccessor indexBuilder = new AttributeAccessor
+                    {
+                        AccessorId = primitive.Indices,
+                        Stream = _assetCache.BufferCache[bufferId].Stream,
+                        Offset = (uint)_assetCache.BufferCache[bufferId].ChunkOffset
+                    };
 
-					attributeAccessors[SemanticProperties.INDICES] = indexBuilder;
-				}
+                    attributeAccessors[SemanticProperties.INDICES] = indexBuilder;
+                }
 
-				GLTFHelpers.BuildMeshAttributes(ref attributeAccessors);
+                GLTFHelpers.BuildMeshAttributes(ref attributeAccessors);
 
-				TransformAttributes(ref attributeAccessors);
-				_assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes = attributeAccessors;
-			}
-		}
-
-
-		protected void TransformAttributes(ref Dictionary<string, AttributeAccessor> attributeAccessors)
-		{
-			// Flip vectors and triangles to the Unity coordinate system.
-			if (attributeAccessors.ContainsKey(SemanticProperties.POSITION))
-			{
-				AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.POSITION];
-				SchemaExtensions.ConvertVector3CoordinateSpace(ref attributeAccessor, SchemaExtensions.CoordinateSpaceConversionScale);
-			}
-			if (attributeAccessors.ContainsKey(SemanticProperties.INDICES))
-			{
-				AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.INDICES];
-				SchemaExtensions.FlipFaces(ref attributeAccessor);
-			}
-			if (attributeAccessors.ContainsKey(SemanticProperties.NORMAL))
-			{
-				AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.NORMAL];
-				SchemaExtensions.ConvertVector3CoordinateSpace(ref attributeAccessor, SchemaExtensions.CoordinateSpaceConversionScale);
-			}
-			// TexCoord goes from 0 to 3 to match GLTFHelpers.BuildMeshAttributes
-			for (int i = 0; i < 4; i++)
-			{
-				if (attributeAccessors.ContainsKey(SemanticProperties.TexCoord(i)))
-				{
-					AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.TexCoord(i)];
-					SchemaExtensions.FlipTexCoordArrayV(ref attributeAccessor);
-				}
-			}
-			if (attributeAccessors.ContainsKey(SemanticProperties.TANGENT))
-			{
-				AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.TANGENT];
-				SchemaExtensions.ConvertVector4CoordinateSpace(ref attributeAccessor, SchemaExtensions.TangentSpaceConversionScale);
-			}
-		}
-
-#region Animation
-		static string RelativePathFrom(Transform self, Transform root)
-		{
-			var path = new List<String>();
-			for (var current = self; current !=  null; current = current.parent)
-			{
-				if (current == root)
-				{
-					return String.Join("/", path.ToArray());
-				}
-
-				path.Insert(0, current.name);
-			}
-
-			throw new Exception("no RelativePath");
-		}
-
-		protected virtual void BuildAnimationSamplers(GLTFAnimation animation, int animationId)
-		{
-			// look up expected data types
-			var typeMap = new Dictionary<int, string>();
-			foreach (var channel in animation.Channels)
-			{
-				typeMap[channel.Sampler.Id] = channel.Target.Path.ToString();
-			}
-
-			var samplers = _assetCache.AnimationCache[animationId].Samplers;
-			var samplersByType = new Dictionary<string, List<AttributeAccessor>>
-			{
-				{"time", new List<AttributeAccessor>(animation.Samplers.Count)}
-			};
-
-			for (var i = 0; i < animation.Samplers.Count; i++)
-			{
-				// no sense generating unused samplers
-				if (!typeMap.ContainsKey(i))
-				{
-					continue;
-				}
-
-				var samplerDef = animation.Samplers[i];
-
-				// set up input accessors
-				BufferCacheData bufferCacheData = _assetCache.BufferCache[samplerDef.Input.Value.BufferView.Value.Buffer.Id];
-				AttributeAccessor attributeAccessor = new AttributeAccessor
-				{
-					AccessorId = samplerDef.Input,
-					Stream = bufferCacheData.Stream,
-					Offset = bufferCacheData.ChunkOffset
-				};
-
-				samplers[i].Input = attributeAccessor;
-				samplersByType["time"].Add(attributeAccessor);
-
-				// set up output accessors
-				bufferCacheData = _assetCache.BufferCache[samplerDef.Output.Value.BufferView.Value.Buffer.Id];
-				attributeAccessor = new AttributeAccessor
-				{
-					AccessorId = samplerDef.Output,
-					Stream = bufferCacheData.Stream,
-					Offset = bufferCacheData.ChunkOffset
-				};
-
-				samplers[i].Output = attributeAccessor;
-
-				if (!samplersByType.ContainsKey(typeMap[i]))
-				{
-					samplersByType[typeMap[i]] = new List<AttributeAccessor>();
-				}
-
-				samplersByType[typeMap[i]].Add(attributeAccessor);
-			}
-
-			// populate attributeAccessors with buffer data
-			GLTFHelpers.BuildAnimationSamplers(ref samplersByType);
-		}
-
-		protected void SetAnimationCurve(
-			AnimationClip clip,
-			string relativePath,
-			string[] propertyNames,
-			NumericArray input,
-			NumericArray output,
-			InterpolationType mode,
-			Type curveType,
-			ValuesConvertion getConvertedValues)
-		{
-
-			var channelCount = propertyNames.Length;
-			var frameCount = input.AsFloats.Length;
-
-			// copy all the key frame data to cache
-			Keyframe[][] keyframes = new Keyframe[channelCount][];
-			for( var ci = 0; ci < channelCount; ++ci)
-			{
-				keyframes[ci] = new Keyframe[frameCount];
-			}
-
-			for (var i = 0; i < frameCount; ++i)
-			{
-				var time = input.AsFloats[i];
-
-				var values = getConvertedValues(output, i);
-
-				for( var ci = 0; ci < channelCount; ++ci)
-				{
-					keyframes[ci][i] = new Keyframe(time, values[ci]);
-				}
-			}
-
-			for( var ci = 0; ci < channelCount; ++ci)
-			{
-				// set interpolcation for each keyframe
-				SetCurveMode(keyframes[ci], mode);
-				// copy all key frames data to animation curve and add it to the clip
-				AnimationCurve curve = new AnimationCurve();
-				curve.keys = keyframes[ci];
-				clip.SetCurve(relativePath, curveType, propertyNames[ci], curve);
-			}
-		}
-
-		protected AnimationClip ConstructClip(Transform root, GameObject[] nodes, int animationId)
-		{
-			GLTFAnimation animation = _gltfRoot.Animations[animationId];
-
-			AnimationCacheData animationCache = _assetCache.AnimationCache[animationId];
-			if (animationCache == null)
-			{
-				animationCache = new AnimationCacheData(animation.Samplers.Count);
-				_assetCache.AnimationCache[animationId] = animationCache;
-			}
-			else if (animationCache.LoadedAnimationClip != null)
-			{
-				return animationCache.LoadedAnimationClip;
-			}
-
-			// unpack accessors
-			BuildAnimationSamplers(animation, animationId);
-
-			// init clip
-			AnimationClip clip = new AnimationClip
-			{
-				name = animation.Name ?? string.Format("animation:{0}", animationId)
-			};
-			_assetCache.AnimationCache[animationId].LoadedAnimationClip = clip;
-
-			// needed because Animator component is unavailable at runtime
-			clip.legacy = true;
-
-			foreach (AnimationChannel channel in animation.Channels)
-			{
-				AnimationSamplerCacheData samplerCache = animationCache.Samplers[channel.Sampler.Id];
-				Transform node = nodes[channel.Target.Node.Id].transform;
-				string relativePath = RelativePathFrom(node, root);
-
-				NumericArray input = samplerCache.Input.AccessorContent,
-					output = samplerCache.Output.AccessorContent;
-
-				string[] propertyNames;
-
-				switch (channel.Target.Path)
-				{
-					case GLTFAnimationChannelPath.translation:
-						propertyNames = new string[] { "localPosition.x", "localPosition.y", "localPosition.z" };
-
-						SetAnimationCurve(clip, relativePath, propertyNames, input, output,
-										  samplerCache.Interpolation, typeof(Transform),
-										  (data, frame) => {
-											  var position = data.AsVec3s[frame].ToUnityVector3Convert();
-											  return new float[] { position.x, position.y, position.z};
-										  });
-						break;
-
-					case GLTFAnimationChannelPath.rotation:
-						propertyNames = new string[] { "localRotation.x", "localRotation.y", "localRotation.z", "localRotation.w" };
-
-						SetAnimationCurve(clip, relativePath, propertyNames, input, output,
-										  samplerCache.Interpolation, typeof(Transform),
-										  (data, frame) => {
-											  var rotation = data.AsVec4s[frame];
-											  var quaternion = new GLTF.Math.Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W).ToUnityQuaternionConvert();
-											  return new float[] { quaternion.x, quaternion.y, quaternion.z, quaternion.w};
-										  });
-
-						break;
-
-					case GLTFAnimationChannelPath.scale:
-						propertyNames = new string[] { "localScale.x", "localScale.y", "localScale.z" };
-
-						SetAnimationCurve(clip, relativePath, propertyNames, input, output,
-										  samplerCache.Interpolation, typeof(Transform),
-										  (data, frame) => {
-											  var scale = data.AsVec3s[frame].ToUnityVector3Raw();
-											  return new float[] { scale.x, scale.y, scale.z};
-										  });
-						break;
-
-					case GLTFAnimationChannelPath.weights:
-						// TODO: add support for blend shapes/morph targets
-
-						// var primitives = channel.Target.Node.Value.Mesh.Value.Primitives;
-						// var targetCount = primitives[0].Targets.Count;
-						// for (int primitiveIndex = 0; primitiveIndex < primitives.Count; primitiveIndex++)
-						// {
-						// 	for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
-						// 	{
-						//
-						// 		//clip.SetCurve(primitiveObjPath, typeof(SkinnedMeshRenderer), "blendShape." + targetIndex, curves[targetIndex]);
-						// 	}
-						// }
-						break;
-
-					default:
-						Debug.LogWarning("Cannot read GLTF animation path");
-						break;
-				} // switch target type
-			} // foreach channel
-
-			clip.EnsureQuaternionContinuity();
-			return clip;
-		}
-
-		public static void SetCurveMode(Keyframe[] keyframes, InterpolationType mode)
-		{
-			for (int i = 0; i < keyframes.Length; ++i)
-			{
-				float intangent = 0;
-				float outtangent = 0;
-				bool intangent_set = false;
-				bool outtangent_set = false;
-				Vector2 point1;
-				Vector2 point2;
-				Vector2 deltapoint;
-				var key = keyframes[i];
-
-				if (i == 0)
-				{
-					intangent = 0; intangent_set = true;
-				}
-
-				if (i == keyframes.Length - 1)
-				{
-					outtangent = 0; outtangent_set = true;
-				}
-				switch (mode)
-				{
-					case InterpolationType.STEP:
-						{
-							intangent = 0;
-							outtangent = float.PositiveInfinity;
-						}
-						break;
-					case InterpolationType.LINEAR:
-						{
-							if (!intangent_set)
-							{
-								point1.x = keyframes[i - 1].time;
-								point1.y = keyframes[i - 1].value;
-								point2.x = keyframes[i].time;
-								point2.y = keyframes[i].value;
-
-								deltapoint = point2 - point1;
-
-								intangent = deltapoint.y / deltapoint.x;
-							}
-							if (!outtangent_set)
-							{
-								point1.x = keyframes[i].time;
-								point1.y = keyframes[i].value;
-								point2.x = keyframes[i + 1].time;
-								point2.y = keyframes[i + 1].value;
-
-								deltapoint = point2 - point1;
-
-								outtangent = deltapoint.y / deltapoint.x;
-							}
-						}
-						break;
-					//use default unity curve
-					case InterpolationType.CUBICSPLINE:
-						break;
-					case InterpolationType.CATMULLROMSPLINE:
-						break;
-					default:
-						break;
-				}
+                TransformAttributes(ref attributeAccessors);
+                _assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes = attributeAccessors;
+            }
+        }
 
 
-				key.inTangent = intangent;
-				key.outTangent = outtangent;
-			}
-		}
-#endregion
+        protected void TransformAttributes(ref Dictionary<string, AttributeAccessor> attributeAccessors)
+        {
+            // Flip vectors and triangles to the Unity coordinate system.
+            if (attributeAccessors.ContainsKey(SemanticProperties.POSITION))
+            {
+                AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.POSITION];
+                SchemaExtensions.ConvertVector3CoordinateSpace(ref attributeAccessor, SchemaExtensions.CoordinateSpaceConversionScale);
+            }
+            if (attributeAccessors.ContainsKey(SemanticProperties.INDICES))
+            {
+                AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.INDICES];
+                SchemaExtensions.FlipFaces(ref attributeAccessor);
+            }
+            if (attributeAccessors.ContainsKey(SemanticProperties.NORMAL))
+            {
+                AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.NORMAL];
+                SchemaExtensions.ConvertVector3CoordinateSpace(ref attributeAccessor, SchemaExtensions.CoordinateSpaceConversionScale);
+            }
+            // TexCoord goes from 0 to 3 to match GLTFHelpers.BuildMeshAttributes
+            for (int i = 0; i < 4; i++)
+            {
+                if (attributeAccessors.ContainsKey(SemanticProperties.TexCoord(i)))
+                {
+                    AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.TexCoord(i)];
+                    SchemaExtensions.FlipTexCoordArrayV(ref attributeAccessor);
+                }
+            }
+            if (attributeAccessors.ContainsKey(SemanticProperties.TANGENT))
+            {
+                AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.TANGENT];
+                SchemaExtensions.ConvertVector4CoordinateSpace(ref attributeAccessor, SchemaExtensions.TangentSpaceConversionScale);
+            }
+        }
 
-		protected virtual async Task ConstructScene(GLTFScene scene, bool showSceneObj)
-		{
-			var sceneObj = new GameObject(string.IsNullOrEmpty(scene.Name) ? ("GLTFScene") : scene.Name);
-            sceneObj.transform.SetParent(SceneParent,false);
+        #region Animation
+        static string RelativePathFrom(Transform self, Transform root)
+        {
+            var path = new List<String>();
+            for (var current = self; current != null; current = current.parent)
+            {
+                if (current == root)
+                {
+                    return String.Join("/", path.ToArray());
+                }
+
+                path.Insert(0, current.name);
+            }
+
+            throw new Exception("no RelativePath");
+        }
+
+        protected virtual void BuildAnimationSamplers(GLTFAnimation animation, int animationId)
+        {
+            // look up expected data types
+            var typeMap = new Dictionary<int, string>();
+            foreach (var channel in animation.Channels)
+            {
+                typeMap[channel.Sampler.Id] = channel.Target.Path.ToString();
+            }
+
+            var samplers = _assetCache.AnimationCache[animationId].Samplers;
+            var samplersByType = new Dictionary<string, List<AttributeAccessor>>
+            {
+                {"time", new List<AttributeAccessor>(animation.Samplers.Count)}
+            };
+
+            for (var i = 0; i < animation.Samplers.Count; i++)
+            {
+                // no sense generating unused samplers
+                if (!typeMap.ContainsKey(i))
+                {
+                    continue;
+                }
+
+                var samplerDef = animation.Samplers[i];
+
+                // set up input accessors
+                BufferCacheData bufferCacheData = _assetCache.BufferCache[samplerDef.Input.Value.BufferView.Value.Buffer.Id];
+                AttributeAccessor attributeAccessor = new AttributeAccessor
+                {
+                    AccessorId = samplerDef.Input,
+                    Stream = bufferCacheData.Stream,
+                    Offset = bufferCacheData.ChunkOffset
+                };
+
+                samplers[i].Input = attributeAccessor;
+                samplersByType["time"].Add(attributeAccessor);
+
+                // set up output accessors
+                bufferCacheData = _assetCache.BufferCache[samplerDef.Output.Value.BufferView.Value.Buffer.Id];
+                attributeAccessor = new AttributeAccessor
+                {
+                    AccessorId = samplerDef.Output,
+                    Stream = bufferCacheData.Stream,
+                    Offset = bufferCacheData.ChunkOffset
+                };
+
+                samplers[i].Output = attributeAccessor;
+
+                if (!samplersByType.ContainsKey(typeMap[i]))
+                {
+                    samplersByType[typeMap[i]] = new List<AttributeAccessor>();
+                }
+
+                samplersByType[typeMap[i]].Add(attributeAccessor);
+            }
+
+            // populate attributeAccessors with buffer data
+            GLTFHelpers.BuildAnimationSamplers(ref samplersByType);
+        }
+
+        protected void SetAnimationCurve(
+            AnimationClip clip,
+            string relativePath,
+            string[] propertyNames,
+            NumericArray input,
+            NumericArray output,
+            InterpolationType mode,
+            Type curveType,
+            ValuesConvertion getConvertedValues)
+        {
+
+            var channelCount = propertyNames.Length;
+            var frameCount = input.AsFloats.Length;
+
+            // copy all the key frame data to cache
+            Keyframe[][] keyframes = new Keyframe[channelCount][];
+            for (var ci = 0; ci < channelCount; ++ci)
+            {
+                keyframes[ci] = new Keyframe[frameCount];
+            }
+
+            for (var i = 0; i < frameCount; ++i)
+            {
+                var time = input.AsFloats[i];
+
+                var values = getConvertedValues(output, i);
+
+                for (var ci = 0; ci < channelCount; ++ci)
+                {
+                    keyframes[ci][i] = new Keyframe(time, values[ci]);
+                }
+            }
+
+            for (var ci = 0; ci < channelCount; ++ci)
+            {
+                // set interpolcation for each keyframe
+                SetCurveMode(keyframes[ci], mode);
+                // copy all key frames data to animation curve and add it to the clip
+                AnimationCurve curve = new AnimationCurve();
+                curve.keys = keyframes[ci];
+                clip.SetCurve(relativePath, curveType, propertyNames[ci], curve);
+            }
+        }
+
+        protected AnimationClip ConstructClip(Transform root, GameObject[] nodes, int animationId)
+        {
+            GLTFAnimation animation = _gltfRoot.Animations[animationId];
+
+            AnimationCacheData animationCache = _assetCache.AnimationCache[animationId];
+            if (animationCache == null)
+            {
+                animationCache = new AnimationCacheData(animation.Samplers.Count);
+                _assetCache.AnimationCache[animationId] = animationCache;
+            }
+            else if (animationCache.LoadedAnimationClip != null)
+            {
+                return animationCache.LoadedAnimationClip;
+            }
+
+            // unpack accessors
+            BuildAnimationSamplers(animation, animationId);
+
+            // init clip
+            AnimationClip clip = new AnimationClip
+            {
+                name = animation.Name ?? string.Format("animation:{0}", animationId)
+            };
+            _assetCache.AnimationCache[animationId].LoadedAnimationClip = clip;
+
+            // needed because Animator component is unavailable at runtime
+            clip.legacy = true;
+
+            foreach (AnimationChannel channel in animation.Channels)
+            {
+                AnimationSamplerCacheData samplerCache = animationCache.Samplers[channel.Sampler.Id];
+                Transform node = nodes[channel.Target.Node.Id].transform;
+                string relativePath = RelativePathFrom(node, root);
+
+                NumericArray input = samplerCache.Input.AccessorContent,
+                    output = samplerCache.Output.AccessorContent;
+
+                string[] propertyNames;
+
+                switch (channel.Target.Path)
+                {
+                    case GLTFAnimationChannelPath.translation:
+                        propertyNames = new string[] { "localPosition.x", "localPosition.y", "localPosition.z" };
+
+                        SetAnimationCurve(clip, relativePath, propertyNames, input, output,
+                                          samplerCache.Interpolation, typeof(Transform),
+                                          (data, frame) => {
+                                              var position = data.AsVec3s[frame].ToUnityVector3Convert();
+                                              return new float[] { position.x, position.y, position.z };
+                                          });
+                        break;
+
+                    case GLTFAnimationChannelPath.rotation:
+                        propertyNames = new string[] { "localRotation.x", "localRotation.y", "localRotation.z", "localRotation.w" };
+
+                        SetAnimationCurve(clip, relativePath, propertyNames, input, output,
+                                          samplerCache.Interpolation, typeof(Transform),
+                                          (data, frame) => {
+                                              var rotation = data.AsVec4s[frame];
+                                              var quaternion = new GLTF.Math.Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W).ToUnityQuaternionConvert();
+                                              return new float[] { quaternion.x, quaternion.y, quaternion.z, quaternion.w };
+                                          });
+
+                        break;
+
+                    case GLTFAnimationChannelPath.scale:
+                        propertyNames = new string[] { "localScale.x", "localScale.y", "localScale.z" };
+
+                        SetAnimationCurve(clip, relativePath, propertyNames, input, output,
+                                          samplerCache.Interpolation, typeof(Transform),
+                                          (data, frame) => {
+                                              var scale = data.AsVec3s[frame].ToUnityVector3Raw();
+                                              return new float[] { scale.x, scale.y, scale.z };
+                                          });
+                        break;
+
+                    case GLTFAnimationChannelPath.weights:
+                        // TODO: add support for blend shapes/morph targets
+
+                        // var primitives = channel.Target.Node.Value.Mesh.Value.Primitives;
+                        // var targetCount = primitives[0].Targets.Count;
+                        // for (int primitiveIndex = 0; primitiveIndex < primitives.Count; primitiveIndex++)
+                        // {
+                        // 	for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
+                        // 	{
+                        //
+                        // 		//clip.SetCurve(primitiveObjPath, typeof(SkinnedMeshRenderer), "blendShape." + targetIndex, curves[targetIndex]);
+                        // 	}
+                        // }
+                        break;
+
+                    default:
+                        Debug.LogWarning("Cannot read GLTF animation path");
+                        break;
+                } // switch target type
+            } // foreach channel
+
+            clip.EnsureQuaternionContinuity();
+            return clip;
+        }
+
+        public static void SetCurveMode(Keyframe[] keyframes, InterpolationType mode)
+        {
+            for (int i = 0; i < keyframes.Length; ++i)
+            {
+                float intangent = 0;
+                float outtangent = 0;
+                bool intangent_set = false;
+                bool outtangent_set = false;
+                Vector2 point1;
+                Vector2 point2;
+                Vector2 deltapoint;
+                var key = keyframes[i];
+
+                if (i == 0)
+                {
+                    intangent = 0; intangent_set = true;
+                }
+
+                if (i == keyframes.Length - 1)
+                {
+                    outtangent = 0; outtangent_set = true;
+                }
+                switch (mode)
+                {
+                    case InterpolationType.STEP:
+                        {
+                            intangent = 0;
+                            outtangent = float.PositiveInfinity;
+                        }
+                        break;
+                    case InterpolationType.LINEAR:
+                        {
+                            if (!intangent_set)
+                            {
+                                point1.x = keyframes[i - 1].time;
+                                point1.y = keyframes[i - 1].value;
+                                point2.x = keyframes[i].time;
+                                point2.y = keyframes[i].value;
+
+                                deltapoint = point2 - point1;
+
+                                intangent = deltapoint.y / deltapoint.x;
+                            }
+                            if (!outtangent_set)
+                            {
+                                point1.x = keyframes[i].time;
+                                point1.y = keyframes[i].value;
+                                point2.x = keyframes[i + 1].time;
+                                point2.y = keyframes[i + 1].value;
+
+                                deltapoint = point2 - point1;
+
+                                outtangent = deltapoint.y / deltapoint.x;
+                            }
+                        }
+                        break;
+                    //use default unity curve
+                    case InterpolationType.CUBICSPLINE:
+                        break;
+                    case InterpolationType.CATMULLROMSPLINE:
+                        break;
+                    default:
+                        break;
+                }
+
+
+                key.inTangent = intangent;
+                key.outTangent = outtangent;
+            }
+        }
+        #endregion
+
+        protected virtual async Task ConstructScene(GLTFScene scene, bool showSceneObj)
+        {
+            var sceneObj = new GameObject(string.IsNullOrEmpty(scene.Name) ? ("GLTFScene") : scene.Name);
+            sceneObj.transform.SetParent(SceneParent, false);
             //sceneObj.hideFlags = HideFlags.DontSaveInEditor;
-			sceneObj.SetActive(showSceneObj);
+            sceneObj.SetActive(showSceneObj);
 
-			//Transform[] nodeTransforms = new Transform[scene.Nodes.Count];
-			for (int i = 0; i < scene.Nodes.Count; ++i)
-			{
-				NodeId node = scene.Nodes[i];
-				await _LoadNode(node.Id);
-				GameObject nodeObj = _assetCache.NodeCache[node.Id];
-				nodeObj.transform.SetParent(sceneObj.transform, false);
+            //Transform[] nodeTransforms = new Transform[scene.Nodes.Count];
+            for (int i = 0; i < scene.Nodes.Count; ++i)
+            {
+                NodeId node = scene.Nodes[i];
+                await _LoadNode(node.Id);
+                GameObject nodeObj = _assetCache.NodeCache[node.Id];
+                nodeObj.transform.SetParent(sceneObj.transform, false);
                 nodeObj.SetActive(true);
-				//nodeTransforms[i] = nodeObj.transform;
-			}
+                //nodeTransforms[i] = nodeObj.transform;
+            }
 
-			if (_gltfRoot.Animations != null && _gltfRoot.Animations.Count > 0)
-			{
-				// create the AnimationClip that will contain animation data
-				Animation animation = sceneObj.AddComponent<Animation>();
-				for (int i = 0; i < _gltfRoot.Animations.Count; ++i)
-				{
-					AnimationClip clip = ConstructClip(sceneObj.transform, _assetCache.NodeCache, i);
+            if (_gltfRoot.Animations != null && _gltfRoot.Animations.Count > 0)
+            {
+                // create the AnimationClip that will contain animation data
+                Animation animation = sceneObj.AddComponent<Animation>();
+                for (int i = 0; i < _gltfRoot.Animations.Count; ++i)
+                {
+                    AnimationClip clip = ConstructClip(sceneObj.transform, _assetCache.NodeCache, i);
 
-					clip.wrapMode = WrapMode.Loop;
+                    clip.wrapMode = WrapMode.Loop;
 
-					animation.AddClip(clip, clip.name);
-					if (i == 0)
-					{
-						animation.clip = clip;
-					}
-				}
-			}
+                    animation.AddClip(clip, clip.name);
+                    if (i == 0)
+                    {
+                        animation.clip = clip;
+                    }
+                }
+            }
 
-			CreatedObject = sceneObj;
-			InitializeGltfTopLevelObject();
-          
-		}
+            CreatedObject = sceneObj;
+            InitializeGltfTopLevelObject();
+
+        }
 
 
-		protected virtual async Task ConstructNode(Node node, int nodeIndex)
-		{
-			if (_assetCache.NodeCache[nodeIndex] != null)
-			{
-				return;
-			}
+        protected virtual async Task ConstructNode(Node node, int nodeIndex)
+        {
+            if (_assetCache.NodeCache[nodeIndex] != null)
+            {
+                return;
+            }
 
-			var nodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode" + nodeIndex) : node.Name);
-            nodeObj.transform.SetParent(SceneParent,false);
-			// If we're creating a really large node, we need it to not be visible in partial stages. So we hide it while we create it
-			nodeObj.SetActive(false);
+            var nodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode" + nodeIndex) : node.Name);
+            nodeObj.transform.SetParent(SceneParent, false);
+            // If we're creating a really large node, we need it to not be visible in partial stages. So we hide it while we create it
+            nodeObj.SetActive(false);
             //nodeObj.hideFlags = HideFlags.DontSaveInEditor;
 
-			Vector3 position;
-			Quaternion rotation;
-			Vector3 scale;
-			node.GetUnityTRSProperties(out position, out rotation, out scale);
-			nodeObj.transform.localPosition = position;
-			nodeObj.transform.localRotation = rotation;
-			nodeObj.transform.localScale = scale;
+            Vector3 position;
+            Quaternion rotation;
+            Vector3 scale;
+            node.GetUnityTRSProperties(out position, out rotation, out scale);
+            nodeObj.transform.localPosition = position;
+            nodeObj.transform.localRotation = rotation;
+            nodeObj.transform.localScale = scale;
 
-			if (node.Mesh != null)
-			{
-				await ConstructMesh(node.Mesh.Value, nodeObj.transform, node.Mesh.Id, node.Skin != null ? node.Skin.Value : null);
-			}
-			/* TODO: implement camera (probably a flag to disable for VR as well)
+            if (node.Mesh != null)
+            {
+                await ConstructMesh(node.Mesh.Value, nodeObj.transform, node.Mesh.Id, node.Skin != null ? node.Skin.Value : null);
+            }
+            /* TODO: implement camera (probably a flag to disable for VR as well)
 			if (camera != null)
 			{
 				GameObject cameraObj = camera.Value.Create();
@@ -1408,185 +1409,185 @@ namespace UnityGLTF
 			}
 			*/
 
-			if (node.Children != null)
-			{
-				foreach (var child in node.Children)
-				{
-					// todo blgross: replace with an iterartive solution
-					await ConstructNode(child.Value, child.Id);
-					GameObject childObj = _assetCache.NodeCache[child.Id];
-					childObj.transform.SetParent(nodeObj.transform, false);
+            if (node.Children != null)
+            {
+                foreach (var child in node.Children)
+                {
+                    // todo blgross: replace with an iterartive solution
+                    await ConstructNode(child.Value, child.Id);
+                    GameObject childObj = _assetCache.NodeCache[child.Id];
+                    childObj.transform.SetParent(nodeObj.transform, false);
                     childObj.SetActive(true);
-				}
-			}
-			nodeObj.SetActive(false);
-			_assetCache.NodeCache[nodeIndex] = nodeObj;
+                }
+            }
+            nodeObj.SetActive(false);
+            _assetCache.NodeCache[nodeIndex] = nodeObj;
 
-			const string msft_LODExtName = MSFT_LODExtensionFactory.EXTENSION_NAME;
-			MSFT_LODExtension lodsextension = null;
-			if (_gltfRoot.ExtensionsUsed != null
-				&& _gltfRoot.ExtensionsUsed.Contains(msft_LODExtName)
-				&& node.Extensions != null
-				&& node.Extensions.ContainsKey(msft_LODExtName))
-			{
-				lodsextension = node.Extensions[msft_LODExtName] as MSFT_LODExtension;
-				if (lodsextension != null && lodsextension.MeshIds.Count > 0)
-				{
-					int lodCount = lodsextension.MeshIds.Count + 1;
-					if (!CullFarLOD)
-					{
-						//create a final lod with the mesh as the last LOD in file
-						lodCount += 1;
-					}
-					LOD[] lods = new LOD[lodsextension.MeshIds.Count + 2];
-					List<double> lodCoverage = lodsextension.GetLODCoverage(node);
+            const string msft_LODExtName = MSFT_LODExtensionFactory.EXTENSION_NAME;
+            MSFT_LODExtension lodsextension = null;
+            if (_gltfRoot.ExtensionsUsed != null
+                && _gltfRoot.ExtensionsUsed.Contains(msft_LODExtName)
+                && node.Extensions != null
+                && node.Extensions.ContainsKey(msft_LODExtName))
+            {
+                lodsextension = node.Extensions[msft_LODExtName] as MSFT_LODExtension;
+                if (lodsextension != null && lodsextension.MeshIds.Count > 0)
+                {
+                    int lodCount = lodsextension.MeshIds.Count + 1;
+                    if (!CullFarLOD)
+                    {
+                        //create a final lod with the mesh as the last LOD in file
+                        lodCount += 1;
+                    }
+                    LOD[] lods = new LOD[lodsextension.MeshIds.Count + 2];
+                    List<double> lodCoverage = lodsextension.GetLODCoverage(node);
 
-					var lodGroupNodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode_LODGroup" + nodeIndex) : node.Name);
+                    var lodGroupNodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode_LODGroup" + nodeIndex) : node.Name);
                     //lodGroupNodeObj.hideFlags = HideFlags.DontSaveInEditor;
-					lodGroupNodeObj.SetActive(false);
-					nodeObj.transform.SetParent(lodGroupNodeObj.transform, false);
+                    lodGroupNodeObj.SetActive(false);
+                    nodeObj.transform.SetParent(lodGroupNodeObj.transform, false);
                     nodeObj.SetActive(true);
-					MeshRenderer[] childRenders = nodeObj.GetComponentsInChildren<MeshRenderer>();
-					lods[0] = new LOD(GetLodCoverage(lodCoverage, 0), childRenders);
+                    MeshRenderer[] childRenders = nodeObj.GetComponentsInChildren<MeshRenderer>();
+                    lods[0] = new LOD(GetLodCoverage(lodCoverage, 0), childRenders);
 
-					LODGroup lodGroup = lodGroupNodeObj.AddComponent<LODGroup>();
-					for (int i = 0; i < lodsextension.MeshIds.Count; i++)
-					{
-						int lodNodeId = lodsextension.MeshIds[i];
-						await ConstructNode(_gltfRoot.Nodes[lodNodeId], lodNodeId);
-						int lodIndex = i + 1;
-						GameObject lodNodeObj = _assetCache.NodeCache[lodNodeId];
-						lodNodeObj.transform.SetParent(lodGroupNodeObj.transform, false);
-						childRenders = lodNodeObj.GetComponentsInChildren<MeshRenderer>();
-						lods[lodIndex] = new LOD(GetLodCoverage(lodCoverage, lodIndex), childRenders);
-					}
+                    LODGroup lodGroup = lodGroupNodeObj.AddComponent<LODGroup>();
+                    for (int i = 0; i < lodsextension.MeshIds.Count; i++)
+                    {
+                        int lodNodeId = lodsextension.MeshIds[i];
+                        await ConstructNode(_gltfRoot.Nodes[lodNodeId], lodNodeId);
+                        int lodIndex = i + 1;
+                        GameObject lodNodeObj = _assetCache.NodeCache[lodNodeId];
+                        lodNodeObj.transform.SetParent(lodGroupNodeObj.transform, false);
+                        childRenders = lodNodeObj.GetComponentsInChildren<MeshRenderer>();
+                        lods[lodIndex] = new LOD(GetLodCoverage(lodCoverage, lodIndex), childRenders);
+                    }
 
-					if (!CullFarLOD)
-					{
-						//use the last mesh as the LOD
-						lods[lodsextension.MeshIds.Count + 1] = new LOD(0, childRenders);
-					}
+                    if (!CullFarLOD)
+                    {
+                        //use the last mesh as the LOD
+                        lods[lodsextension.MeshIds.Count + 1] = new LOD(0, childRenders);
+                    }
 
-					lodGroup.SetLODs(lods);
-					lodGroup.RecalculateBounds();
-					lodGroupNodeObj.SetActive(true);
-					_assetCache.NodeCache[nodeIndex] = lodGroupNodeObj;
-				}
-			}
+                    lodGroup.SetLODs(lods);
+                    lodGroup.RecalculateBounds();
+                    lodGroupNodeObj.SetActive(true);
+                    _assetCache.NodeCache[nodeIndex] = lodGroupNodeObj;
+                }
+            }
 
-		}
+        }
 
-		float GetLodCoverage(List<double> lodcoverageExtras, int lodIndex)
-		{
-			if (lodcoverageExtras != null && lodIndex < lodcoverageExtras.Count)
-			{
-				return (float)lodcoverageExtras[lodIndex];
-			}
-			else
-			{
-				return 1.0f / (lodIndex + 2);
-			}
-		}
+        float GetLodCoverage(List<double> lodcoverageExtras, int lodIndex)
+        {
+            if (lodcoverageExtras != null && lodIndex < lodcoverageExtras.Count)
+            {
+                return (float)lodcoverageExtras[lodIndex];
+            }
+            else
+            {
+                return 1.0f / (lodIndex + 2);
+            }
+        }
 
-		private bool NeedsSkinnedMeshRenderer(MeshPrimitive primitive, Skin skin)
-		{
-			return HasBones(skin) || HasBlendShapes(primitive);
-		}
+        private bool NeedsSkinnedMeshRenderer(MeshPrimitive primitive, Skin skin)
+        {
+            return HasBones(skin) || HasBlendShapes(primitive);
+        }
 
-		private bool HasBones(Skin skin)
-		{
-			return skin != null;
-		}
+        private bool HasBones(Skin skin)
+        {
+            return skin != null;
+        }
 
-		private bool HasBlendShapes(MeshPrimitive primitive)
-		{
-			return primitive.Targets != null;
-		}
+        private bool HasBlendShapes(MeshPrimitive primitive)
+        {
+            return primitive.Targets != null;
+        }
 
-		protected virtual async Task SetupBones(Skin skin, MeshPrimitive primitive, SkinnedMeshRenderer renderer, GameObject primitiveObj, Mesh curMesh)
-		{
-			var boneCount = skin.Joints.Count;
-			Transform[] bones = new Transform[boneCount];
+        protected virtual async Task SetupBones(Skin skin, MeshPrimitive primitive, SkinnedMeshRenderer renderer, GameObject primitiveObj, Mesh curMesh)
+        {
+            var boneCount = skin.Joints.Count;
+            Transform[] bones = new Transform[boneCount];
 
-			int bufferId = skin.InverseBindMatrices.Value.BufferView.Value.Buffer.Id;
-			AttributeAccessor attributeAccessor = new AttributeAccessor
-			{
-				AccessorId = skin.InverseBindMatrices,
-				Stream = _assetCache.BufferCache[bufferId].Stream,
-				Offset = _assetCache.BufferCache[bufferId].ChunkOffset
-			};
+            int bufferId = skin.InverseBindMatrices.Value.BufferView.Value.Buffer.Id;
+            AttributeAccessor attributeAccessor = new AttributeAccessor
+            {
+                AccessorId = skin.InverseBindMatrices,
+                Stream = _assetCache.BufferCache[bufferId].Stream,
+                Offset = _assetCache.BufferCache[bufferId].ChunkOffset
+            };
 
-			GLTFHelpers.BuildBindPoseSamplers(ref attributeAccessor);
+            GLTFHelpers.BuildBindPoseSamplers(ref attributeAccessor);
 
-			Matrix4x4[] gltfBindPoses = attributeAccessor.AccessorContent.AsMatrix4x4s;
-			UnityEngine.Matrix4x4[] bindPoses = new UnityEngine.Matrix4x4[skin.Joints.Count];
+            Matrix4x4[] gltfBindPoses = attributeAccessor.AccessorContent.AsMatrix4x4s;
+            UnityEngine.Matrix4x4[] bindPoses = new UnityEngine.Matrix4x4[skin.Joints.Count];
 
-			for (int i = 0; i < boneCount; i++)
-			{
-				if (_assetCache.NodeCache[skin.Joints[i].Id] == null)
-				{
-					await ConstructNode(_gltfRoot.Nodes[skin.Joints[i].Id], skin.Joints[i].Id);
-				}
-				bones[i] = _assetCache.NodeCache[skin.Joints[i].Id].transform;
-				bindPoses[i] = gltfBindPoses[i].ToUnityMatrix4x4Convert();
-			}
+            for (int i = 0; i < boneCount; i++)
+            {
+                if (_assetCache.NodeCache[skin.Joints[i].Id] == null)
+                {
+                    await ConstructNode(_gltfRoot.Nodes[skin.Joints[i].Id], skin.Joints[i].Id);
+                }
+                bones[i] = _assetCache.NodeCache[skin.Joints[i].Id].transform;
+                bindPoses[i] = gltfBindPoses[i].ToUnityMatrix4x4Convert();
+            }
 
-			renderer.rootBone = _assetCache.NodeCache[skin.Skeleton.Id].transform;
-			curMesh.bindposes = bindPoses;
-			renderer.bones = bones;
-		}
+            renderer.rootBone = _assetCache.NodeCache[skin.Skeleton.Id].transform;
+            curMesh.bindposes = bindPoses;
+            renderer.bones = bones;
+        }
 
-		private BoneWeight[] CreateBoneWeightArray(Vector4[] joints, Vector4[] weights, int vertCount)
-		{
-			NormalizeBoneWeightArray(weights);
+        private BoneWeight[] CreateBoneWeightArray(Vector4[] joints, Vector4[] weights, int vertCount)
+        {
+            NormalizeBoneWeightArray(weights);
 
-			BoneWeight[] boneWeights = new BoneWeight[vertCount];
-			for (int i = 0; i < vertCount; i++)
-			{
-				boneWeights[i].boneIndex0 = (int)joints[i].x;
-				boneWeights[i].boneIndex1 = (int)joints[i].y;
-				boneWeights[i].boneIndex2 = (int)joints[i].z;
-				boneWeights[i].boneIndex3 = (int)joints[i].w;
+            BoneWeight[] boneWeights = new BoneWeight[vertCount];
+            for (int i = 0; i < vertCount; i++)
+            {
+                boneWeights[i].boneIndex0 = (int)joints[i].x;
+                boneWeights[i].boneIndex1 = (int)joints[i].y;
+                boneWeights[i].boneIndex2 = (int)joints[i].z;
+                boneWeights[i].boneIndex3 = (int)joints[i].w;
 
-				boneWeights[i].weight0 = weights[i].x;
-				boneWeights[i].weight1 = weights[i].y;
-				boneWeights[i].weight2 = weights[i].z;
-				boneWeights[i].weight3 = weights[i].w;
-			}
+                boneWeights[i].weight0 = weights[i].x;
+                boneWeights[i].weight1 = weights[i].y;
+                boneWeights[i].weight2 = weights[i].z;
+                boneWeights[i].weight3 = weights[i].w;
+            }
 
-			return boneWeights;
-		}
+            return boneWeights;
+        }
 
-		/// <summary>
-		/// Ensures each bone weight influences applied to the vertices add up to 1
-		/// </summary>
-		/// <param name="weights">Bone weight array</param>
-		private void NormalizeBoneWeightArray(Vector4[] weights)
-		{
-			for (int i = 0; i < weights.Length; i++)
-			{
-				var weightSum = (weights[i].x + weights[i].y + weights[i].z + weights[i].w);
+        /// <summary>
+        /// Ensures each bone weight influences applied to the vertices add up to 1
+        /// </summary>
+        /// <param name="weights">Bone weight array</param>
+        private void NormalizeBoneWeightArray(Vector4[] weights)
+        {
+            for (int i = 0; i < weights.Length; i++)
+            {
+                var weightSum = (weights[i].x + weights[i].y + weights[i].z + weights[i].w);
 
-				if (!Mathf.Approximately(weightSum, 0))
-				{
-					weights[i] /= weightSum;
-				}
-			}
-		}
+                if (!Mathf.Approximately(weightSum, 0))
+                {
+                    weights[i] /= weightSum;
+                }
+            }
+        }
 
-		protected virtual async Task ConstructMesh(GLTFMesh mesh, Transform parent, int meshId, Skin skin)
-		{
-			if (_assetCache.MeshCache[meshId] == null)
-			{
-				_assetCache.MeshCache[meshId] = new MeshCacheData[mesh.Primitives.Count];
-			}
+        protected virtual async Task ConstructMesh(GLTFMesh mesh, Transform parent, int meshId, Skin skin)
+        {
+            if (_assetCache.MeshCache[meshId] == null)
+            {
+                _assetCache.MeshCache[meshId] = new MeshCacheData[mesh.Primitives.Count];
+            }
 
-			for (int i = 0; i < mesh.Primitives.Count; ++i)
-			{
-				var primitive = mesh.Primitives[i];
-				int materialIndex = primitive.Material != null ? primitive.Material.Id : -1;
+            for (int i = 0; i < mesh.Primitives.Count; ++i)
+            {
+                var primitive = mesh.Primitives[i];
+                int materialIndex = primitive.Material != null ? primitive.Material.Id : -1;
 
-				await ConstructMeshPrimitive(primitive, meshId, i, materialIndex);
+                await ConstructMeshPrimitive(primitive, meshId, i, materialIndex);
 
                 //var primitiveObj = new GameObject("Primitive");
                 GameObject primitiveObj;
@@ -1597,19 +1598,19 @@ namespace UnityGLTF
                 else
                 {
                     primitiveObj = new GameObject("Primitive");
-                    primitiveObj.transform.SetParent(SceneParent,false);
+                    primitiveObj.transform.SetParent(SceneParent, false);
                     primitiveObj.SetActive(false);
                     //primitiveObj.hideFlags = HideFlags.DontSaveInEditor;
                 }
 
-				Mesh curMesh = _assetCache.MeshCache[meshId][i].LoadedMesh;
+                Mesh curMesh = _assetCache.MeshCache[meshId][i].LoadedMesh;
 
                 if (useMeshRenderers)
                 {
                     MaterialCacheData materialCacheData =
-					    materialIndex >= 0 ? _assetCache.MaterialCache[materialIndex] : _defaultLoadedMaterial;
+                        materialIndex >= 0 ? _assetCache.MaterialCache[materialIndex] : _defaultLoadedMaterial;
 
-				    Material material = materialCacheData.GetContents(primitive.Attributes.ContainsKey(SemanticProperties.Color(0)));
+                    Material material = materialCacheData.GetContents(primitive.Attributes.ContainsKey(SemanticProperties.Color(0)));
 
                     if (NeedsSkinnedMeshRenderer(primitive, skin))
                     {
@@ -1637,35 +1638,35 @@ namespace UnityGLTF
                 }
 
                 UnityEngine.Collider collider = null;
-				switch (Collider)
-				{
-					case ColliderType.Box:
-						var boxCollider = primitiveObj.AddComponent<BoxCollider>();
+                switch (Collider)
+                {
+                    case ColliderType.Box:
+                        var boxCollider = primitiveObj.AddComponent<BoxCollider>();
                         collider = boxCollider;
-						boxCollider.center = curMesh.bounds.center;
-						boxCollider.size = curMesh.bounds.size;
-						break;
-					case ColliderType.Mesh:
-						var meshCollider = primitiveObj.AddComponent<MeshCollider>();
+                        boxCollider.center = curMesh.bounds.center;
+                        boxCollider.size = curMesh.bounds.size;
+                        break;
+                    case ColliderType.Mesh:
+                        var meshCollider = primitiveObj.AddComponent<MeshCollider>();
                         collider = meshCollider;
 
                         meshCollider.cookingOptions =
-                            MeshColliderCookingOptions.CookForFasterSimulation 
-                            |MeshColliderCookingOptions.EnableMeshCleaning 
-                            |MeshColliderCookingOptions.WeldColocatedVertices 
+                            MeshColliderCookingOptions.CookForFasterSimulation
+                            | MeshColliderCookingOptions.EnableMeshCleaning
+                            | MeshColliderCookingOptions.WeldColocatedVertices
 #if UNITY_2019_3_OR_NEWER
-                            |MeshColliderCookingOptions.UseFastMidphase
+                            | MeshColliderCookingOptions.UseFastMidphase
 #endif
                             ;
-						meshCollider.sharedMesh = curMesh;
-						break;
-					case ColliderType.MeshConvex:
-						var meshConvexCollider = primitiveObj.AddComponent<MeshCollider>();
+                        meshCollider.sharedMesh = curMesh;
+                        break;
+                    case ColliderType.MeshConvex:
+                        var meshConvexCollider = primitiveObj.AddComponent<MeshCollider>();
                         collider = meshConvexCollider;
-						meshConvexCollider.sharedMesh = curMesh;
-						meshConvexCollider.convex = true;
-						break;
-				}
+                        meshConvexCollider.sharedMesh = curMesh;
+                        meshConvexCollider.convex = true;
+                        break;
+                }
 
                 if (collider != null)
                 {
@@ -1676,43 +1677,43 @@ namespace UnityGLTF
                 {
                     primitiveObj.transform.SetParent(parent, false);
                     float startTime = Time.time;
-				    primitiveObj.SetActive(true);
+                    primitiveObj.SetActive(true);
                     this.activateTime += Time.time - startTime;
                 }
-				//_assetCache.MeshCache[meshId][i].PrimitiveGO = primitiveObj;
-			}
-		}
+                //_assetCache.MeshCache[meshId][i].PrimitiveGO = primitiveObj;
+            }
+        }
 
 
-		protected virtual async Task ConstructMeshPrimitive(MeshPrimitive primitive, int meshID, int primitiveIndex, int materialIndex)
-		{
-			if (_assetCache.MeshCache[meshID][primitiveIndex] == null)
-			{
-				_assetCache.MeshCache[meshID][primitiveIndex] = new MeshCacheData();
-			}
-			if (_assetCache.MeshCache[meshID][primitiveIndex].LoadedMesh == null)
-			{
-				var meshAttributes = _assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes;
-				var meshConstructionData = new MeshConstructionData
-				{
-					Primitive = primitive,
-					MeshAttributes = meshAttributes
-				};
+        protected virtual async Task ConstructMeshPrimitive(MeshPrimitive primitive, int meshID, int primitiveIndex, int materialIndex)
+        {
+            if (_assetCache.MeshCache[meshID][primitiveIndex] == null)
+            {
+                _assetCache.MeshCache[meshID][primitiveIndex] = new MeshCacheData();
+            }
+            if (_assetCache.MeshCache[meshID][primitiveIndex].LoadedMesh == null)
+            {
+                var meshAttributes = _assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes;
+                var meshConstructionData = new MeshConstructionData
+                {
+                    Primitive = primitive,
+                    MeshAttributes = meshAttributes
+                };
 
-				UnityMeshData unityMeshData = null;
-				if (IsMultithreaded)
-				{
-					await Task.Run(() => unityMeshData = ConvertAccessorsToUnityTypes(meshConstructionData));
-				}
-				else
-				{
-					unityMeshData = ConvertAccessorsToUnityTypes(meshConstructionData);
-				}
+                UnityMeshData unityMeshData = null;
+                if (IsMultithreaded)
+                {
+                    await Task.Run(() => unityMeshData = ConvertAccessorsToUnityTypes(meshConstructionData));
+                }
+                else
+                {
+                    unityMeshData = ConvertAccessorsToUnityTypes(meshConstructionData);
+                }
 
                 await ConstructUnityMesh(meshConstructionData, meshID, primitiveIndex, unityMeshData);
-			}
+            }
 
-			bool shouldUseDefaultMaterial = primitive.Material == null;
+            bool shouldUseDefaultMaterial = primitive.Material == null;
 
             if (useMeshRenderers)
             {
@@ -1728,70 +1729,83 @@ namespace UnityGLTF
                     {
                         await ConstructMaterial(materialToLoad, shouldUseDefaultMaterial ? -1 : materialIndex);
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         Debug.LogException(e);
                     }
                 }
             }
-		}
+        }
 
-		protected UnityMeshData ConvertAccessorsToUnityTypes(MeshConstructionData meshConstructionData)
-		{
-			// todo optimize: There are multiple copies being performed to turn the buffer data into mesh data. Look into reducing them
-			MeshPrimitive primitive = meshConstructionData.Primitive;
-			Dictionary<string, AttributeAccessor> meshAttributes = meshConstructionData.MeshAttributes;
+        protected UnityMeshData ConvertAccessorsToUnityTypes(MeshConstructionData meshConstructionData)
+        {
+            // todo optimize: There are multiple copies being performed to turn the buffer data into mesh data. Look into reducing them
+            MeshPrimitive primitive = meshConstructionData.Primitive;
+            Dictionary<string, AttributeAccessor> meshAttributes = meshConstructionData.MeshAttributes;
 
-			int vertexCount = (int)primitive.Attributes[SemanticProperties.POSITION].Value.Count;
+            int vertexCount = (int)primitive.Attributes[SemanticProperties.POSITION].Value.Count;
 
-			return new UnityMeshData
-			{
-				Vertices = primitive.Attributes.ContainsKey(SemanticProperties.POSITION)
-					? meshAttributes[SemanticProperties.POSITION].AccessorContent.AsVertices.ToUnityVector3Raw()
-					: null,
+            return new UnityMeshData
+            {
+                Vertices = primitive.Attributes.ContainsKey(SemanticProperties.POSITION)
+                    ? meshAttributes[SemanticProperties.POSITION].AccessorContent.AsVertices.ToUnityVector3Raw()
+                    : null,
 
-				Normals = primitive.Attributes.ContainsKey(SemanticProperties.NORMAL)
-					? meshAttributes[SemanticProperties.NORMAL].AccessorContent.AsNormals.ToUnityVector3Raw()
-					: null,
+                Normals = primitive.Attributes.ContainsKey(SemanticProperties.NORMAL)
+                    ? meshAttributes[SemanticProperties.NORMAL].AccessorContent.AsNormals.ToUnityVector3Raw()
+                    : null,
 
-				Uv1 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(0))
-					? meshAttributes[SemanticProperties.TexCoord(0)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
-					: null,
+                Uv1 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(0))
+                    ? meshAttributes[SemanticProperties.TexCoord(0)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
+                    : null,
 
-				Uv2 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(1))
-					? meshAttributes[SemanticProperties.TexCoord(1)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
-					: null,
+                Uv2 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(1))
+                    ? meshAttributes[SemanticProperties.TexCoord(1)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
+                    : null,
 
-				Uv3 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(2))
-					? meshAttributes[SemanticProperties.TexCoord(2)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
-					: null,
+                Uv3 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(2))
+                    ? meshAttributes[SemanticProperties.TexCoord(2)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
+                    : null,
 
-				Uv4 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(3))
-					? meshAttributes[SemanticProperties.TexCoord(3)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
-					: null,
+                Uv4 = primitive.Attributes.ContainsKey(SemanticProperties.TexCoord(3))
+                    ? meshAttributes[SemanticProperties.TexCoord(3)].AccessorContent.AsTexcoords.ToUnityVector2Raw()
+                    : null,
 
-				Colors = primitive.Attributes.ContainsKey(SemanticProperties.Color(0))
-					? meshAttributes[SemanticProperties.Color(0)].AccessorContent.AsColors.ToUnityColorRaw()
-					: null,
+                Colors = primitive.Attributes.ContainsKey(SemanticProperties.Color(0))
+                    ? meshAttributes[SemanticProperties.Color(0)].AccessorContent.AsColors.ToUnityColorRaw()
+                    : null,
 
-				Triangles = primitive.Indices != null
-					? meshAttributes[SemanticProperties.INDICES].AccessorContent.AsUInts.ToIntArrayRaw()
-					: MeshPrimitive.GenerateTriangles(vertexCount),
+                Triangles = primitive.Indices != null
+                    ? meshAttributes[SemanticProperties.INDICES].AccessorContent.AsUInts.ToIntArrayRaw()
+                    : MeshPrimitive.GenerateTriangles(vertexCount),
 
-				Tangents = primitive.Attributes.ContainsKey(SemanticProperties.TANGENT)
-					? meshAttributes[SemanticProperties.TANGENT].AccessorContent.AsTangents.ToUnityVector4Raw()
-					: null,
+                Tangents = primitive.Attributes.ContainsKey(SemanticProperties.TANGENT)
+                    ? meshAttributes[SemanticProperties.TANGENT].AccessorContent.AsTangents.ToUnityVector4Raw()
+                    : null,
 
-				BoneWeights = meshAttributes.ContainsKey(SemanticProperties.Weight(0)) && meshAttributes.ContainsKey(SemanticProperties.Joint(0))
-					? CreateBoneWeightArray(meshAttributes[SemanticProperties.Joint(0)].AccessorContent.AsVec4s.ToUnityVector4Raw(),
-					meshAttributes[SemanticProperties.Weight(0)].AccessorContent.AsVec4s.ToUnityVector4Raw(), vertexCount)
-					: null
-			};
-		}
+                BoneWeights = meshAttributes.ContainsKey(SemanticProperties.Weight(0)) && meshAttributes.ContainsKey(SemanticProperties.Joint(0))
+                    ? CreateBoneWeightArray(meshAttributes[SemanticProperties.Joint(0)].AccessorContent.AsVec4s.ToUnityVector4Raw(),
+                    meshAttributes[SemanticProperties.Weight(0)].AccessorContent.AsVec4s.ToUnityVector4Raw(), vertexCount)
+                    : null
+            };
+        }
+
+        List<Task> tasks = new List<Task>(8);
+        List<int> taskTextureIds = new List<int>(8);
+        void AddConstructImageBufferTask(GLTFTexture texture, int textureIndex)
+        {
+            if (!taskTextureIds.Contains(textureIndex))
+            {
+                tasks.Add(ConstructImageBuffer(texture, textureIndex));
+                taskTextureIds.Add(textureIndex);
+            }
+        }
 
 		protected virtual async Task ConstructMaterialImageBuffers(GLTFMaterial def)
 		{
-			var tasks = new List<Task>(8);
+            tasks.Clear();
+            taskTextureIds.Clear();
+
 			if (def.PbrMetallicRoughness != null)
 			{
 				var pbr = def.PbrMetallicRoughness;
@@ -1799,13 +1813,13 @@ namespace UnityGLTF
 				if (pbr.BaseColorTexture != null)
 				{
 					var textureId = pbr.BaseColorTexture.Index;
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                    AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 				if (pbr.MetallicRoughnessTexture != null)
 				{
 					var textureId = pbr.MetallicRoughnessTexture.Index;
 
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                    AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 			}
 
@@ -1815,7 +1829,7 @@ namespace UnityGLTF
 				{
 					var textureId = def.CommonConstant.LightmapTexture.Index;
 
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                    AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 			}
 
@@ -1833,14 +1847,14 @@ namespace UnityGLTF
 						&& def.PbrMetallicRoughness.MetallicRoughnessTexture != null
 						&& def.PbrMetallicRoughness.MetallicRoughnessTexture.Index.Id == textureId.Id))
 				{
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                    AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 			}
 
 			if (def.EmissiveTexture != null)
 			{
 				var textureId = def.EmissiveTexture.Index;
-				tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                AddConstructImageBufferTask(textureId.Value, textureId.Id);
 			}
 
 			// pbr_spec_gloss extension
@@ -1851,13 +1865,14 @@ namespace UnityGLTF
 				if (specGlossDef.DiffuseTexture != null)
 				{
 					var textureId = specGlossDef.DiffuseTexture.Index;
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                    Debug.Log($"Downloading {_gltfRoot.Images[GetTextureSourceId(textureId.Value)].Uri} in ConstructMaterialImageBuffers 2");
+                    AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 
 				if (specGlossDef.SpecularGlossinessTexture != null)
 				{
 					var textureId = specGlossDef.SpecularGlossinessTexture.Index;
-					tasks.Add(ConstructImageBuffer(textureId.Value, textureId.Id));
+                    AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 			}
 
