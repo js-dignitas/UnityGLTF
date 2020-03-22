@@ -780,7 +780,6 @@ namespace UnityGLTF
                         if (stream == null)
                         {
                             // Still need to download this
-                            Debug.Log($"Downloading {_gltfRoot.Images[GetTextureSourceId(texture)].Uri} in ConstructImage");
                             await ConstructImageBuffer(texture, textureIndex);
                             // Now get it from the cache, if failed, it will be a non readable Stream
                             stream = _assetCache.ImageStreamCache[imageCacheIndex];
@@ -1865,7 +1864,6 @@ namespace UnityGLTF
 				if (specGlossDef.DiffuseTexture != null)
 				{
 					var textureId = specGlossDef.DiffuseTexture.Index;
-                    Debug.Log($"Downloading {_gltfRoot.Images[GetTextureSourceId(textureId.Value)].Uri} in ConstructMaterialImageBuffers 2");
                     AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
 
