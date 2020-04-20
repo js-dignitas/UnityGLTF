@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace UnityGLTF
 {
+    /*
 	[CustomEditor(typeof(GLTFImporter))]
 	[CanEditMultipleObjects]
 	public class GLTFImporterInspector : AssetImporterEditor
@@ -45,5 +46,6 @@ namespace UnityGLTF
 			ApplyRevertGUI();
 		}
 	}
+    */
 }
 #endif

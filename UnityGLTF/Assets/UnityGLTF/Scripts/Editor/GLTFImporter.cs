@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 
 namespace UnityGLTF
 {
+    /*
     [ScriptedImporter(1, new[] { "glb" })]
     public class GLTFImporter : ScriptedImporter
     {
@@ -375,5 +376,6 @@ namespace UnityGLTF
             }
         }
     }
+    */
 }
 #endif
