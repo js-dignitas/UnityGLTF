@@ -95,6 +95,18 @@ namespace GLTF.Math
         public double M34d { get { return mat[14]; } set { mat[14] = value; } }
         public double M44d { get { return mat[15]; } set { mat[15] = value; } }
 
+        double _(double d)
+        {
+            return System.Math.Abs(d) < 1.0E-6 ? 0.0 : d;
+        }
+        public override string ToString()
+        {
+            return String.Format("{0} {1} {2} {3}\n{4} {5} {6} {7}\n{8} {9} {10} {11}\n{12} {13} {14} {15}",
+                _(mat[0]), _(mat[1]), _(mat[2]), _(mat[3]),
+                _(mat[4]), _(mat[5]), _(mat[6]), _(mat[7]),
+                _(mat[8]), _(mat[9]), _(mat[10]), _(mat[11]),
+                _(mat[12]), _(mat[13]), _(mat[14]), _(mat[15]));
+        }
         public bool Equals(Matrix4x4 other)
 		{
 			if (ReferenceEquals(null, other)) return false;

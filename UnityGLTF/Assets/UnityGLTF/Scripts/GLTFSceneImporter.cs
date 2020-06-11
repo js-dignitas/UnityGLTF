@@ -572,7 +572,8 @@ namespace UnityGLTF
                 // we only load the streams if not a base64 uri, meaning the data is in the uri
                 if (image.Uri != null && !URIHelper.IsBase64Uri(image.Uri))
                 {
-                    bool inGlobalCache = (globalCache != null && globalCache.Contains(image.Uri));
+                    string fullPath = FullPath(image.Uri);
+                    bool inGlobalCache = (globalCache != null && globalCache.Contains(fullPath));
 
                     Stream stream = null;
                     try
@@ -580,13 +581,13 @@ namespace UnityGLTF
                         if (!inGlobalCache)
                         {
                             //float startTime = Time.time;
-                            stream = await _loader.LoadStream(image.Uri);
+                            stream = await _loader.LoadStream(fullPath);
                             //this.downloadingTime += Time.time - startTime;
                         }
                         else
                         {
                             // increase ref count
-                            globalCache.GetTexture(image.Uri);
+                            globalCache.GetTexture(fullPath);
                         }
                     }
                     catch (Exception e)
@@ -623,6 +624,17 @@ namespace UnityGLTF
             yield return waitUntil;
         }
 
+        public static string GetFileFromUri(System.Uri uri)
+        {
+            return uri.Segments[uri.Segments.Length - 1];
+        }
+
+        public static string GetDirectoryName(System.Uri uri)
+        {
+            return uri.AbsoluteUri.Remove(uri.AbsoluteUri.Length - GetFileFromUri(uri).Length - uri.Query.Length);
+        }
+
+        string baseUrl = "";
         private async Task LoadJson(string jsonFilePath)
         {
             float startTime = Time.time;
@@ -637,10 +649,16 @@ namespace UnityGLTF
 
             this.downloadingTime += Time.time - startTime;
 
+            this.baseUrl = GetDirectoryName(new Uri(jsonFilePath));
+
             await Task.Run(() => GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition));
 
         }
 
+        public string FullPath(string path)
+        {
+            return baseUrl + "/" + path;
+        }
         private static void RunCoroutineSync(IEnumerator streamEnum)
         {
             var stack = new Stack<IEnumerator>();
@@ -739,7 +757,7 @@ namespace UnityGLTF
                 else
                 {
                     float startTime = Time.time;
-                    bufferDataStream = await _loader.LoadStream(buffer.Uri);
+                    bufferDataStream = await _loader.LoadStream(FullPath(buffer.Uri));
                     this.downloadingTime += Time.time - startTime;
                 }
 
@@ -881,9 +899,10 @@ namespace UnityGLTF
         protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool isLinear, GLTFImage image, int imageCacheIndex)
         {
             Texture2D texture = null;
+            string fullPath = FullPath(image.Uri);
             if (image.Uri != null && globalCache != null)
             {
-                texture = globalCache.GetTexture(image.Uri);
+                texture = globalCache.GetTexture(fullPath);
                 if (texture != null && stream == null)
                 {
                     // Remove the ref count created earlier to hold the texture in the cache before it got to this code
@@ -938,8 +957,8 @@ namespace UnityGLTF
                 if (image.Uri != null && globalCache != null)
                 {
                     Object.DontDestroyOnLoad(texture);
-                    texture.name = image.Uri;
-                    var textureActual = globalCache.Add(image.Uri, texture);
+                    texture.name = fullPath;
+                    var textureActual = globalCache.Add(fullPath, texture);
                     if (textureActual != texture)
                     {
                         Texture2D.Destroy(texture);
@@ -1392,9 +1411,11 @@ namespace UnityGLTF
             Quaternion rotation;
             Vector3 scale;
             node.GetUnityTRSProperties(out position, out rotation, out scale);
+            if (verbose) Debug.Log("gltf node " + node.Name + ":\n" + node.Matrix + "\n");
             nodeObj.transform.localPosition = position;
             nodeObj.transform.localRotation = rotation;
             nodeObj.transform.localScale = scale;
+            if (verbose) Debug.Log("unity node " + nodeObj.name + ": pos: " + position + ", euler:" + rotation.eulerAngles + ", scale: " + scale + "\n");
 
             if (node.Mesh != null)
             {
