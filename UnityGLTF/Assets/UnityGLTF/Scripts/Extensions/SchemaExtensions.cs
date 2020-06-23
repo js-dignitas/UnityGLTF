@@ -430,9 +430,10 @@ namespace UnityGLTF.Extensions
 		/// <param name="attributeAccessor">The attribute accessor to modify</param>
 		public static void FlipTexCoordArrayV(ref AttributeAccessor attributeAccessor)
 		{
-			for (var i = 0; i < attributeAccessor.AccessorContent.AsVec2s.Length; i++)
+            var vec2s = attributeAccessor.AccessorContent.AsVec2s;
+			for (var i = 0; i < vec2s.Length; i++)
 			{
-				attributeAccessor.AccessorContent.AsVec2s[i].Y = 1.0f - attributeAccessor.AccessorContent.AsVec2s[i].Y;
+				vec2s[i].Y = 1.0f - vec2s[i].Y;
 			}
 		}
 
@@ -550,11 +551,14 @@ namespace UnityGLTF.Extensions
 		{
             try
             {
-                for (int i = 0; i < attributeAccessor.AccessorContent.AsTriangles.Length; i += 3)
+                var content = attributeAccessor.AccessorContent;
+                var uIntArray = content.AsUInts;
+                var length = content.AsTriangles.Length;
+                for (int i = 0; i < length; i += 3)
                 {
-                    uint temp = attributeAccessor.AccessorContent.AsUInts[i];
-                    attributeAccessor.AccessorContent.AsUInts[i] = attributeAccessor.AccessorContent.AsUInts[i + 2];
-                    attributeAccessor.AccessorContent.AsUInts[i + 2] = temp;
+                    uint temp = uIntArray[i];
+                    uIntArray[i] = uIntArray[i + 2];
+                    uIntArray[i + 2] = temp;
                 }
             }
             catch(System.Exception e)
