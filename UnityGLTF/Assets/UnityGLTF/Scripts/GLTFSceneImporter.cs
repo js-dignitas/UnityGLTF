@@ -1023,16 +1023,6 @@ namespace UnityGLTF
                         {
                             // Avoid creating yet another byte array. Use the internal bufer of the stream
                             byte[] buffer = memoryStream.GetBuffer();
-/*
-                            byte[] buffer = new byte[stream.Length];
-
-                            // todo: potential optimization is to split stream read into multiple frames (or put it on a thread?)
-                            if (stream.Length > int.MaxValue)
-                            {
-                                throw new Exception("Stream is larger than can be copied into byte array");
-                            }
-                            stream.Read(buffer, 0, (int)stream.Length);
-                            */
 
                             var texRef = new TextureRef();
                             await ConstructUnityTextureFromBytes(buffer, 0, (int)memoryStream.Length, markGpuOnly, isLinear, image, texRef);
