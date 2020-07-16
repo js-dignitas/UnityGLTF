@@ -21,6 +21,8 @@ using UnityGLTF.Loader;
 using UnityEngine.Profiling;
 using Matrix4x4 = GLTF.Math.Matrix4x4;
 using Object = UnityEngine.Object;
+using Unity.Collections;
+using UnityEngine.Events;
 #if !WINDOWS_UWP_IGNORE_THIS
 using ThreadPriority = System.Threading.ThreadPriority;
 #endif
@@ -892,11 +894,54 @@ namespace UnityGLTF
             var marker = BitConverter.ToUInt16(buffer, 2);
             return soi == 0xd8ff && (marker & 0xe0ff) == 0xe0ff;
         }
+        static bool IsBASIS(byte[] buffer, int offset)
+        {
+            return
+                buffer[offset + 0] == 0x73 &&
+                buffer[offset + 1] == 0x42;
+        }
 
+        async Task<Texture2D> LoadBASIS(byte[] buffer, int offset, int length, bool markGpuOnly, bool isLinear)
+        {
+            var basisTex = new KtxUnity.BasisUniversalTexture();
+            Texture2D texture = null;
+            SemaphoreSlim sem = new SemaphoreSlim(1,1);
+
+            // Handler for when LoadFromBytes is finished
+            UnityAction<Texture2D> handler = (tex) => 
+            {
+                texture = tex;
+                // This will let WaitAsync continue
+                sem.Release();
+            };
+            basisTex.onTextureLoaded += handler;
+            using (var na = new NativeArray<byte>(buffer, KtxUnity.KtxNativeInstance.defaultAllocator))
+            {
+                sem.Wait();
+                // This will spawn a coroutine and then call our handler
+                basisTex.LoadFromBytes(na, _asyncCoroutineHelper);
+
+                // wait for our handler to get called so the semaphore will be released.
+                bool success = await sem.WaitAsync(3000);
+
+                // if timeouted out, then print an error
+                if (!success)
+                {
+                    Debug.LogError("The semaphore for the basis transcoder did not get released.");
+                }
+
+                basisTex.onTextureLoaded -= handler;
+            }
+            return texture;
+        }
         async Task ConstructUnityTextureFromBytes(byte[] buffer, int offset, int length, bool markGpuOnly, bool isLinear, GLTFImage image, TextureRef textureRef)
         {
             Texture2D texture = null;
-            if (Dds.IsDDS(buffer, offset))
+            if (IsBASIS(buffer, offset))
+            {
+                texture = await LoadBASIS(buffer, offset, length, markGpuOnly, isLinear);
+            }
+            else if (Dds.IsDDS(buffer, offset))
             {
                 var format = TextureFormat.DXT1;
                 texture = Dds.LoadTextureDXT(buffer, offset, length, format, isLinear, markGpuOnly, verbose, maxImageDim, mipmapSkip);
@@ -978,6 +1023,7 @@ namespace UnityGLTF
                         {
                             // Avoid creating yet another byte array. Use the internal bufer of the stream
                             byte[] buffer = memoryStream.GetBuffer();
+
                             var texRef = new TextureRef();
                             await ConstructUnityTextureFromBytes(buffer, 0, (int)memoryStream.Length, markGpuOnly, isLinear, image, texRef);
                             texture = texRef.texture;
