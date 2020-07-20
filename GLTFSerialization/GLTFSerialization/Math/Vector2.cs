@@ -4,8 +4,8 @@ namespace GLTF.Math
 {
 	public struct Vector2 : IEquatable<Vector2>
 	{
-        public float X; //{ get; set; }
-        public float Y; //{ get; set; }
+		public float X;
+		public float Y;
 	
 		public Vector2(float x, float y)
 		{
