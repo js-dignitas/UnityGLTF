@@ -18,6 +18,7 @@ using UnityEngine.Rendering;
 using UnityGLTF.Cache;
 using UnityGLTF.Extensions;
 using UnityGLTF.Loader;
+using UnityEngine.Profiling;
 using Matrix4x4 = GLTF.Math.Matrix4x4;
 using Object = UnityEngine.Object;
 using Unity.Collections;
@@ -305,6 +306,8 @@ namespace UnityGLTF
         {
             try
             {
+                //Profiler.BeginThreadProfiling("ThreadGroup", "GLTF");
+                //Profiler.BeginSample("GLTF.LoadSceneAsync");
                 lock (this)
                 {
                     if (_isRunning)
@@ -338,6 +341,7 @@ namespace UnityGLTF
                 {
                     _isRunning = false;
                 }
+                //Profiler.EndSample();
             }
 
             onLoadComplete?.Invoke(LastLoadedScene, null);
@@ -482,6 +486,7 @@ namespace UnityGLTF
 
         private async Task ConstructBufferData(Node node)
         {
+            //Profiler.BeginSample("GLTF.ConstructBufferData");
             MeshId mesh = node.Mesh;
             if (mesh != null)
             {
@@ -516,6 +521,7 @@ namespace UnityGLTF
                     }
                 }
             }
+            //Profiler.EndSample();
         }
 
         private async Task ConstructMeshAttributes(GLTFMesh mesh, MeshId meshId)
@@ -574,7 +580,8 @@ namespace UnityGLTF
                 // we only load the streams if not a base64 uri, meaning the data is in the uri
                 if (image.Uri != null && !URIHelper.IsBase64Uri(image.Uri))
                 {
-                    bool inGlobalCache = (globalCache != null && globalCache.Contains(image.Uri));
+                    string fullPath = FullPath(image.Uri);
+                    bool inGlobalCache = (globalCache != null && globalCache.Contains(fullPath));
 
                     Stream stream = null;
                     try
@@ -582,13 +589,13 @@ namespace UnityGLTF
                         if (!inGlobalCache)
                         {
                             //float startTime = Time.time;
-                            stream = await _loader.LoadStream(image.Uri);
+                            stream = await _loader.LoadStream(fullPath);
                             //this.downloadingTime += Time.time - startTime;
                         }
                         else
                         {
                             // increase ref count
-                            globalCache.GetTexture(image.Uri);
+                            globalCache.GetTexture(fullPath);
                         }
                     }
                     catch (Exception e)
@@ -625,8 +632,20 @@ namespace UnityGLTF
             yield return waitUntil;
         }
 
+        public static string GetFileFromUri(System.Uri uri)
+        {
+            return uri.Segments[uri.Segments.Length - 1];
+        }
+
+        public static string GetDirectoryName(System.Uri uri)
+        {
+            return uri.AbsoluteUri.Remove(uri.AbsoluteUri.Length - GetFileFromUri(uri).Length - uri.Query.Length);
+        }
+
+        string baseUrl = "";
         private async Task LoadJson(string jsonFilePath)
         {
+            //Profiler.BeginSample("GLTF.LoadJson");
             float startTime = Time.time;
 
             _gltfStream.Stream = await _loader.LoadStream(jsonFilePath);
@@ -639,10 +658,17 @@ namespace UnityGLTF
 
             this.downloadingTime += Time.time - startTime;
 
+            this.baseUrl = GetDirectoryName(new Uri(jsonFilePath));
+
             await Task.Run(() => GLTFParser.ParseJson(_gltfStream.Stream, out _gltfRoot, _gltfStream.StartPosition));
+            //Profiler.EndSample();
 
         }
 
+        public string FullPath(string path)
+        {
+            return baseUrl + "/" + path;
+        }
         private static void RunCoroutineSync(IEnumerator streamEnum)
         {
             var stack = new Stack<IEnumerator>();
@@ -664,6 +690,7 @@ namespace UnityGLTF
 
         private async Task _LoadNode(int nodeIndex)
         {
+            //Profiler.BeginSample("GLTF.LoadNode");
             if (nodeIndex >= _gltfRoot.Nodes.Count)
             {
                 throw new ArgumentException("nodeIndex is out of range");
@@ -681,6 +708,7 @@ namespace UnityGLTF
             }
 
             await ConstructNode(nodeToLoad, nodeIndex);
+            //Profiler.EndSample();
         }
 
         /// <summary>
@@ -709,6 +737,7 @@ namespace UnityGLTF
             float startTime = Time.time;
 
             await ConstructScene(scene, showSceneObj);
+            if(!Application.isPlaying) { return; }
 
             this.processingTime += Time.time - startTime;
 
@@ -721,8 +750,49 @@ namespace UnityGLTF
             _lastLoadedScene = CreatedObject;
         }
 
+        public class TimerData
+        {
+            public string label;
+            public System.Diagnostics.Stopwatch sw;
+        }
+        Queue<TimerData> TimerDataPool = new Queue<TimerData>();
+        public TimerData StartTimer(string label)
+        {
+            if (this.verbose)
+            {
+                if (TimerDataPool.Count > 0)
+                {
+                    var timerData = TimerDataPool.Dequeue();
+                    timerData.sw.Restart();
+                    timerData.label = label;
+                    return timerData;
+                }
+                else
+                {
+                    TimerData timerData = new TimerData()
+                    {
+                        sw = System.Diagnostics.Stopwatch.StartNew(),
+                        label = label
+                    };
+                    return timerData;
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
+        public void StopTimer(TimerData timerData)
+        {
+            if (timerData != null)
+            {
+                Debug.Log($"{Thread.CurrentThread.Name},{timerData.sw.Elapsed.TotalMilliseconds}ms: " + timerData.label);
+                TimerDataPool.Enqueue(timerData);
+            }
+        }
         protected async Task ConstructBuffer(GLTFBuffer buffer, int bufferIndex)
         {
+            var sw = StartTimer("ConstructBuffer");
             if (buffer.Uri == null)
             {
                 _assetCache.BufferCache[bufferIndex] = ConstructBufferFromGLB(bufferIndex);
@@ -741,7 +811,7 @@ namespace UnityGLTF
                 else
                 {
                     float startTime = Time.time;
-                    bufferDataStream = await _loader.LoadStream(buffer.Uri);
+                    bufferDataStream = await _loader.LoadStream(FullPath(buffer.Uri));
                     this.downloadingTime += Time.time - startTime;
                 }
 
@@ -750,6 +820,7 @@ namespace UnityGLTF
                     Stream = bufferDataStream
                 };
             }
+            StopTimer(sw);
         }
 
         protected async Task ConstructImage(GLTFTexture texture, int textureIndex, GLTFImage image, int imageCacheIndex, bool markGpuOnly, bool isLinear)
@@ -823,6 +894,7 @@ namespace UnityGLTF
             var marker = BitConverter.ToUInt16(buffer, 2);
             return soi == 0xd8ff && (marker & 0xe0ff) == 0xe0ff;
         }
+
         static bool IsBASIS(byte[] buffer, int offset)
         {
             return
@@ -926,9 +998,10 @@ namespace UnityGLTF
         protected virtual async Task ConstructUnityTexture(Stream stream, bool markGpuOnly, bool isLinear, GLTFImage image, int imageCacheIndex)
         {
             Texture2D texture = null;
+            string fullPath = FullPath(image.Uri);
             if (image.Uri != null && globalCache != null)
             {
-                texture = globalCache.GetTexture(image.Uri);
+                texture = globalCache.GetTexture(fullPath);
                 if (texture != null && stream == null)
                 {
                     // Remove the ref count created earlier to hold the texture in the cache before it got to this code
@@ -984,8 +1057,8 @@ namespace UnityGLTF
                 if (image.Uri != null && globalCache != null)
                 {
                     Object.DontDestroyOnLoad(texture);
-                    texture.name = image.Uri;
-                    var textureActual = globalCache.Add(image.Uri, texture);
+                    texture.name = fullPath;
+                    var textureActual = globalCache.Add(fullPath, texture);
                     if (textureActual != texture)
                     {
                         Texture2D.Destroy(texture);
@@ -999,6 +1072,7 @@ namespace UnityGLTF
 
         protected virtual async Task ConstructMeshAttributes(MeshPrimitive primitive, int meshID, int primitiveIndex)
         {
+            var sw = StartTimer("ConstructMeshAttributes");
             if (_assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes.Count == 0)
             {
                 Dictionary<string, AttributeAccessor> attributeAccessors = new Dictionary<string, AttributeAccessor>(primitive.Attributes.Count + 1);
@@ -1043,16 +1117,20 @@ namespace UnityGLTF
                     attributeAccessors[SemanticProperties.INDICES] = indexBuilder;
                 }
 
+                var sw2 = StartTimer("BuildMeshAttributes");
                 GLTFHelpers.BuildMeshAttributes(ref attributeAccessors);
+                StopTimer(sw2);
 
                 TransformAttributes(ref attributeAccessors);
                 _assetCache.MeshCache[meshID][primitiveIndex].MeshAttributes = attributeAccessors;
             }
+            StopTimer(sw);
         }
 
 
         protected void TransformAttributes(ref Dictionary<string, AttributeAccessor> attributeAccessors)
         {
+            var sw = StartTimer("TransformAttributes");
             // Flip vectors and triangles to the Unity coordinate system.
             if (attributeAccessors.ContainsKey(SemanticProperties.POSITION))
             {
@@ -1083,6 +1161,7 @@ namespace UnityGLTF
                 AttributeAccessor attributeAccessor = attributeAccessors[SemanticProperties.TANGENT];
                 SchemaExtensions.ConvertVector4CoordinateSpace(ref attributeAccessor, SchemaExtensions.TangentSpaceConversionScale);
             }
+            StopTimer(sw);
         }
 
         #region Animation
@@ -1379,8 +1458,11 @@ namespace UnityGLTF
         }
         #endregion
 
+        CustomSampler sampler = CustomSampler.Create("GLTFSampler");
         protected virtual async Task ConstructScene(GLTFScene scene, bool showSceneObj)
         {
+            sampler.GetRecorder().enabled = true;
+            if(!Application.isPlaying) { return; }
             var sceneObj = new GameObject(string.IsNullOrEmpty(scene.Name) ? ("GLTFScene") : scene.Name);
             sceneObj.transform.SetParent(SceneParent, false);
             //sceneObj.hideFlags = HideFlags.DontSaveInEditor;
@@ -1391,6 +1473,7 @@ namespace UnityGLTF
             {
                 NodeId node = scene.Nodes[i];
                 await _LoadNode(node.Id);
+                if(!Application.isPlaying) { return; }
                 GameObject nodeObj = _assetCache.NodeCache[node.Id];
                 nodeObj.transform.SetParent(sceneObj.transform, false);
                 nodeObj.SetActive(true);
@@ -1417,7 +1500,6 @@ namespace UnityGLTF
 
             CreatedObject = sceneObj;
             InitializeGltfTopLevelObject();
-
         }
 
 
@@ -1428,6 +1510,7 @@ namespace UnityGLTF
                 return;
             }
 
+            if(!Application.isPlaying) { return; }
             var nodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode" + nodeIndex) : node.Name);
             nodeObj.transform.SetParent(SceneParent, false);
             // If we're creating a really large node, we need it to not be visible in partial stages. So we hide it while we create it
@@ -1438,9 +1521,11 @@ namespace UnityGLTF
             Quaternion rotation;
             Vector3 scale;
             node.GetUnityTRSProperties(out position, out rotation, out scale);
+            if (verbose) Debug.Log("gltf node " + node.Name + ":\n" + node.Matrix + "\n");
             nodeObj.transform.localPosition = position;
             nodeObj.transform.localRotation = rotation;
             nodeObj.transform.localScale = scale;
+            if (verbose) Debug.Log("unity node " + nodeObj.name + ": pos: " + position + ", euler:" + rotation.eulerAngles + ", scale: " + scale + "\n");
 
             if (node.Mesh != null)
             {
@@ -1465,6 +1550,7 @@ namespace UnityGLTF
                     childObj.SetActive(true);
                 }
             }
+            if(!Application.isPlaying) { return; }
             nodeObj.SetActive(false);
             _assetCache.NodeCache[nodeIndex] = nodeObj;
 
@@ -1487,6 +1573,7 @@ namespace UnityGLTF
                     LOD[] lods = new LOD[lodsextension.MeshIds.Count + 2];
                     List<double> lodCoverage = lodsextension.GetLODCoverage(node);
 
+                    if(!Application.isPlaying) { return; }
                     var lodGroupNodeObj = new GameObject(string.IsNullOrEmpty(node.Name) ? ("GLTFNode_LODGroup" + nodeIndex) : node.Name);
                     //lodGroupNodeObj.hideFlags = HideFlags.DontSaveInEditor;
                     lodGroupNodeObj.SetActive(false);
@@ -1642,6 +1729,7 @@ namespace UnityGLTF
                 }
                 else
                 {
+                    if(!Application.isPlaying) { return; }
                     primitiveObj = new GameObject("Primitive");
                     primitiveObj.transform.SetParent(SceneParent, false);
                     primitiveObj.SetActive(false);

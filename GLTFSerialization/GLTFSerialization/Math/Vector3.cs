@@ -6,10 +6,9 @@ namespace GLTF.Math
 	{
 		public static readonly Vector3 Zero = new Vector3(0f, 0f, 0f);
 		public static readonly Vector3 One = new Vector3(1f, 1f, 1f);
-
-		public float X { get; set; }
-		public float Y { get; set; }
-		public float Z { get; set; }
+		public float X;
+		public float Y;
+		public float Z;
 		
 		public Vector3(float x, float y, float z)
 		{
