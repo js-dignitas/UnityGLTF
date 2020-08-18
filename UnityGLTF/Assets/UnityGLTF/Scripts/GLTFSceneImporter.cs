@@ -920,7 +920,7 @@ namespace UnityGLTF
             {
                 sem.Wait();
                 // This will spawn a coroutine and then call our handler
-                basisTex.LoadFromBytes(na, _asyncCoroutineHelper);
+                basisTex.LoadFromBytes(na, _asyncCoroutineHelper, isLinear);
 
                 // wait for our handler to get called so the semaphore will be released.
                 bool success = await sem.WaitAsync(3000);
@@ -2472,11 +2472,13 @@ namespace UnityGLTF
 				var matchSamplerState = source.filterMode == desiredFilterMode && source.wrapMode == desiredWrapMode;
 				if (matchSamplerState || markGpuOnly)
 				{
+                    source.wrapMode = desiredWrapMode;
+                    source.filterMode = desiredFilterMode;
 					_assetCache.TextureCache[textureIndex].Texture = source;
 
 					if (!matchSamplerState)
 					{
-						Debug.LogWarning($"Ignoring sampler; filter mode: source {source.filterMode}, desired {desiredFilterMode}; wrap mode: source {source.wrapMode}, desired {desiredWrapMode}");
+						//Debug.LogWarning($"Ignoring sampler; filter mode: source {source.filterMode}, desired {desiredFilterMode}; wrap mode: source {source.wrapMode}, desired {desiredWrapMode}");
 					}
 				}
 				else
