@@ -1770,6 +1770,20 @@ namespace UnityGLTF
                     meshFilter.sharedMesh = curMesh;
                 }
 
+                // Doing this after the mesh is assigned to the MeshFilter because
+                // sometimes when terrain is replaced, the first mesh is destroyed after
+                // the call to BakeMesh to no known reason
+#if UNITY_2019_3_OR_NEWER
+                if (this.Collider == ColliderType.Mesh)
+                {
+                    int unityMeshId = curMesh.GetInstanceID();
+                    await Task.Run(() => Physics.BakeMesh(unityMeshId, false));
+                    if (mesh == null)
+                    {
+                        Debug.Log("Mesh is now null after baking the colliders!");
+                    }
+                }
+#endif
                 UnityEngine.Collider collider = null;
                 switch (Collider)
                 {
@@ -2084,15 +2098,6 @@ namespace UnityGLTF
 			{
 				mesh.UploadMeshData(true);
 			}
-
-#if UNITY_2019_3_OR_NEWER
-            if (this.Collider == ColliderType.Mesh)
-            {
-                int unityMeshId = mesh.GetInstanceID();
-                await Task.Run(() => Physics.BakeMesh(unityMeshId, false));
-            }
-#endif
-
 			_assetCache.MeshCache[meshId][primitiveIndex].LoadedMesh = mesh;
 		}
 
