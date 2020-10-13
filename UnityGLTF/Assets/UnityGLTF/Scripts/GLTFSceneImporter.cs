@@ -196,10 +196,12 @@ namespace UnityGLTF
         /// </summary>
         public string CustomShaderName { get; set; }
 
+        public Material CustomMaterial { get; set; }
         /// <summary>
         /// Override for the shader to use on created materials with AlphaTest set to MASK
         /// </summary>
         public string CustomAlphaTestShaderName { get; set; }
+        public Material CustomAlphaTestMaterial { get; set; }
 
         /// <summary>
         /// Whether to keep a CPU-side copy of the mesh after upload to GPU (for example, in case normals/tangents need recalculation)
@@ -2117,8 +2119,34 @@ namespace UnityGLTF
 		{
 			return alphaMode == AlphaMode.MASK ? CustomAlphaTestShaderName : CustomShaderName;
 		}
+		Material GetMaterial(GLTF.Schema.AlphaMode alphaMode)
+        {
+			return alphaMode == AlphaMode.MASK ? CustomAlphaTestMaterial : CustomMaterial;
+        }
 
-		protected virtual async Task ConstructMaterial(GLTFMaterial def, int materialIndex)
+        class SpecGlossMapWithMaterial : SpecGlossMap
+        {
+            public SpecGlossMapWithMaterial(Material m, int MaxLOD = 1000) : base(m, MaxLOD) { }
+
+            public override IUniformMap Clone()
+            {
+                var copy = new SpecGlossMapWithMaterial(new Material(_material));
+                base.Copy(copy);
+                return copy;
+            }
+        }
+        class MetalRoughMapWithMaterial : SpecGlossMap
+        {
+            public MetalRoughMapWithMaterial(Material m, int MaxLOD = 1000) : base(m, MaxLOD) { }
+
+            public override IUniformMap Clone()
+            {
+                var copy = new MetalRoughMapWithMaterial(new Material(_material));
+                base.Copy(copy);
+                return copy;
+            }
+        }
+        protected virtual async Task ConstructMaterial(GLTFMaterial def, int materialIndex)
 		{
 			IUniformMap mapper;
 			const string specGlossExtName = KHR_materials_pbrSpecularGlossinessExtensionFactory.EXTENSION_NAME;
@@ -2133,17 +2161,25 @@ namespace UnityGLTF
 					def.AlphaMode = IsTexturePng(specGloss?.DiffuseTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
 				}
 
-				// Pick the shader based on AlphaMode
-				string shaderName = GetShaderName(def.AlphaMode);
+                Material mat = GetMaterial(def.AlphaMode);
+                if (mat != null)
+                {
+                    mapper = new SpecGlossMapWithMaterial(new Material(mat), MaximumLod);
+                }
+                else
+                {
+                    // Pick the shader based on AlphaMode
+                    string shaderName = GetShaderName(def.AlphaMode);
 
-				if (!string.IsNullOrEmpty(shaderName))
-				{
-					mapper = new SpecGlossMap(shaderName, MaximumLod);
-				}
-				else
-				{
-					mapper = new SpecGlossMap(MaximumLod);
-				}
+                    if (!string.IsNullOrEmpty(shaderName))
+                    {
+                        mapper = new SpecGlossMap(shaderName, MaximumLod);
+                    }
+                    else
+                    {
+                        mapper = new SpecGlossMap(MaximumLod);
+                    }
+                }
 			}
 			else
 			{
@@ -2153,17 +2189,25 @@ namespace UnityGLTF
 					def.AlphaMode = IsTexturePng(def.PbrMetallicRoughness?.BaseColorTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
 				}
 
-				// Pick the shader based on AlphaMode
-				string shaderName = GetShaderName(def.AlphaMode);
+                Material mat = GetMaterial(def.AlphaMode);
+                if (mat != null)
+                {
+                    mapper = new MetalRoughMapWithMaterial(new Material(mat), MaximumLod);
+                }
+                else
+                {
+                    // Pick the shader based on AlphaMode
+                    string shaderName = GetShaderName(def.AlphaMode);
 
-				if (!string.IsNullOrEmpty(shaderName))
-				{
-					mapper = new MetalRoughMap(shaderName, MaximumLod);
-				}
-				else
-				{
-					mapper = new MetalRoughMap(MaximumLod);
-				}
+                    if (!string.IsNullOrEmpty(shaderName))
+                    {
+                        mapper = new MetalRoughMap(shaderName, MaximumLod);
+                    }
+                    else
+                    {
+                        mapper = new MetalRoughMap(MaximumLod);
+                    }
+                }
 			}
 
 			mapper.Material.name = def.Name;
