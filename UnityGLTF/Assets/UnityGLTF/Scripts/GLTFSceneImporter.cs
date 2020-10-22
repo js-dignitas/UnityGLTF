@@ -2135,7 +2135,7 @@ namespace UnityGLTF
                 return copy;
             }
         }
-        class MetalRoughMapWithMaterial : SpecGlossMap
+        class MetalRoughMapWithMaterial : MetalRoughMap
         {
             public MetalRoughMapWithMaterial(Material m, int MaxLOD = 1000) : base(m, MaxLOD) { }
 
@@ -2265,7 +2265,7 @@ namespace UnityGLTF
 			}
 
 			var sgMapper = mapper as ISpecGlossUniformMap;
-			if (sgMapper != null)
+            if (sgMapper != null && def.Extensions.ContainsKey(specGlossExtName))
 			{
 				var specGloss = def.Extensions[specGlossExtName] as KHR_materials_pbrSpecularGlossinessExtension;
 
