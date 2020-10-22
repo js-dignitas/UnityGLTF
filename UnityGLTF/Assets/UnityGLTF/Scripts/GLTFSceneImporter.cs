@@ -197,11 +197,13 @@ namespace UnityGLTF
         public string CustomShaderName { get; set; }
 
         public Material CustomMaterial { get; set; }
+        public Material CustomMaterialUnlit { get; set; }
         /// <summary>
         /// Override for the shader to use on created materials with AlphaTest set to MASK
         /// </summary>
         public string CustomAlphaTestShaderName { get; set; }
         public Material CustomAlphaTestMaterial { get; set; }
+        public Material CustomAlphaTestMaterialUnlit { get; set; }
 
         /// <summary>
         /// Whether to keep a CPU-side copy of the mesh after upload to GPU (for example, in case normals/tangents need recalculation)
@@ -2119,9 +2121,16 @@ namespace UnityGLTF
 		{
 			return alphaMode == AlphaMode.MASK ? CustomAlphaTestShaderName : CustomShaderName;
 		}
-		Material GetMaterial(GLTF.Schema.AlphaMode alphaMode)
+		Material GetMaterial(GLTF.Schema.AlphaMode alphaMode, bool unlit)
         {
-			return alphaMode == AlphaMode.MASK ? CustomAlphaTestMaterial : CustomMaterial;
+            if (unlit)
+            {
+                return alphaMode == AlphaMode.MASK ? CustomAlphaTestMaterialUnlit : CustomMaterialUnlit;
+            }
+            else
+            {
+                return alphaMode == AlphaMode.MASK ? CustomAlphaTestMaterial : CustomMaterial;
+            }
         }
 
         class SpecGlossMapWithMaterial : SpecGlossMap
@@ -2151,6 +2160,7 @@ namespace UnityGLTF
 			IUniformMap mapper;
 			const string specGlossExtName = KHR_materials_pbrSpecularGlossinessExtensionFactory.EXTENSION_NAME;
 
+            bool unlit = def.Extensions != null && def.Extensions.ContainsKey("KHR_materials_unlit");
 			if (_gltfRoot.ExtensionsUsed != null && _gltfRoot.ExtensionsUsed.Contains(specGlossExtName)
 				&& def.Extensions != null && def.Extensions.ContainsKey(specGlossExtName))
 			{
@@ -2161,7 +2171,7 @@ namespace UnityGLTF
 					def.AlphaMode = IsTexturePng(specGloss?.DiffuseTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
 				}
 
-                Material mat = GetMaterial(def.AlphaMode);
+                Material mat = GetMaterial(def.AlphaMode, unlit);
                 if (mat != null)
                 {
                     mapper = new SpecGlossMapWithMaterial(new Material(mat), MaximumLod);
@@ -2189,7 +2199,7 @@ namespace UnityGLTF
 					def.AlphaMode = IsTexturePng(def.PbrMetallicRoughness?.BaseColorTexture) ? AlphaMode.MASK : AlphaMode.OPAQUE;
 				}
 
-                Material mat = GetMaterial(def.AlphaMode);
+                Material mat = GetMaterial(def.AlphaMode, unlit);
                 if (mat != null)
                 {
                     mapper = new MetalRoughMapWithMaterial(new Material(mat), MaximumLod);
