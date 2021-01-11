@@ -641,12 +641,13 @@ namespace UnityGLTF
             return uri.Segments[uri.Segments.Length - 1];
         }
 
-        public static string GetDirectoryName(System.Uri uri)
+        public static Uri GetDirectoryName(System.Uri uri)
         {
-            return uri.AbsoluteUri.Remove(uri.AbsoluteUri.Length - GetFileFromUri(uri).Length - uri.Query.Length);
+            return new Uri(uri.AbsoluteUri.Remove(uri.AbsoluteUri.Length - GetFileFromUri(uri).Length - uri.Query.Length));
         }
 
-        string baseUrl = "";
+        Uri baseUrl = null;
+
         private async Task LoadJson(string jsonFilePath)
         {
             //Profiler.BeginSample("GLTF.LoadJson");
@@ -671,7 +672,7 @@ namespace UnityGLTF
 
         public string FullPath(string path)
         {
-            return baseUrl + "/" + path;
+            return new Uri(baseUrl, path).AbsoluteUri;
         }
         private static void RunCoroutineSync(IEnumerator streamEnum)
         {
