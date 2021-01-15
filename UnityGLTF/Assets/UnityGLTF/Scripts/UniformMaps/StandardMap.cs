@@ -16,6 +16,7 @@ namespace UnityGLTF
 		private Vector2 normalOffset = new Vector2(0, 0);
 		private Vector2 occlusionOffset = new Vector2(0, 0);
 		private Vector2 emissiveOffset = new Vector2(0, 0);
+		private string cullProperty = "_Cull";
 
 		protected StandardMap(string shaderName, int MaxLOD = 1000)
 		{
@@ -27,6 +28,8 @@ namespace UnityGLTF
 
 			s.maximumLOD = MaxLOD;
 			_material = new Material(s);
+
+			if (_material.HasProperty("_CullMode")) cullProperty = "_CullMode";
 		}
 
 		protected StandardMap(Material mat, int MaxLOD = 1000)
@@ -52,6 +55,7 @@ namespace UnityGLTF
 					_alphaMode = AlphaMode.OPAQUE;
 					break;
 			}
+			if (_material.HasProperty("_CullMode")) cullProperty = "_CullMode";
 		}
 
 		public Material Material { get { return _material; } }
@@ -313,7 +317,7 @@ namespace UnityGLTF
 					_material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
 					_material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
 				}
-                _material.SetFloat("_Mode", (float)value);
+				_material.SetFloat("_Mode", (float)value);
 
 				_alphaMode = value;
 			}
@@ -334,13 +338,13 @@ namespace UnityGLTF
 
 		public virtual bool DoubleSided
 		{
-			get { return _material.GetInt("_Cull") == (int)CullMode.Off; }
+			get { return _material.GetInt(cullProperty) == (int)CullMode.Off; }
 			set
 			{
 				if (value)
-					_material.SetInt("_Cull", (int)CullMode.Off);
+					_material.SetInt(cullProperty, (int)CullMode.Off);
 				else
-					_material.SetInt("_Cull", (int)CullMode.Back);
+					_material.SetInt(cullProperty, (int)CullMode.Back);
 			}
 		}
 

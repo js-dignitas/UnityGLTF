@@ -1526,6 +1526,13 @@ namespace UnityGLTF
             Quaternion rotation;
             Vector3 scale;
             node.GetUnityTRSProperties(out position, out rotation, out scale);
+
+            // Save the 64 bit floating point matrix on the Unity GameObject using the GLTFNodeMatrix component
+            if (node.Matrix != GLTF.Math.Matrix4x4.Identity)
+            {
+                nodeObj.AddComponent<GLTFNodeMatrix>().Matrix = node.Matrix; 
+            }
+
             if (verbose) Debug.Log("gltf node " + node.Name + ":\n" + node.Matrix + "\n");
             nodeObj.transform.localPosition = position;
             nodeObj.transform.localRotation = rotation;
