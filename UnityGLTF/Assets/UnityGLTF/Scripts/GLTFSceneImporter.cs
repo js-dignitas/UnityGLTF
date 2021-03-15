@@ -990,11 +990,6 @@ namespace UnityGLTF
                 if (doTextureCompression)
                 {
                     texture.Compress(true);
-                    if (verbose)
-                    {
-                        var raw = texture.GetRawTextureData();
-                        Debug.Log("Compressed format: " + texture.format + ", size: " + raw.Length + ",mips: " + texture.mipmapCount + ", bytes: " + raw[0] + " " + raw[1] + " " + raw[2] + " " + raw[3]);
-                    }
                 }
             }
             textureRef.texture = texture;
@@ -1782,20 +1777,6 @@ namespace UnityGLTF
                     meshFilter.sharedMesh = curMesh;
                 }
 
-                // Doing this after the mesh is assigned to the MeshFilter because
-                // sometimes when terrain is replaced, the first mesh is destroyed after
-                // the call to BakeMesh to no known reason
-#if UNITY_2019_3_OR_NEWER
-                if (this.Collider == ColliderType.Mesh)
-                {
-                    int unityMeshId = curMesh.GetInstanceID();
-                    await Task.Run(() => Physics.BakeMesh(unityMeshId, false));
-                    if (mesh == null)
-                    {
-                        Debug.Log("Mesh is now null after baking the colliders!");
-                    }
-                }
-#endif
                 UnityEngine.Collider collider = null;
                 switch (Collider)
                 {
