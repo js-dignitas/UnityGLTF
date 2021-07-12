@@ -911,32 +911,19 @@ namespace UnityGLTF
         {
             var basisTex = new KtxUnity.BasisUniversalTexture();
             Texture2D texture = null;
-            SemaphoreSlim sem = new SemaphoreSlim(1,1);
 
-            // Handler for when LoadFromBytes is finished
-            UnityAction<Texture2D> handler = (tex) => 
-            {
-                texture = tex;
-                // This will let WaitAsync continue
-                sem.Release();
-            };
-            basisTex.onTextureLoaded += handler;
             using (var na = new NativeArray<byte>(buffer, KtxUnity.KtxNativeInstance.defaultAllocator))
             {
-                sem.Wait();
                 // This will spawn a coroutine and then call our handler
-                basisTex.LoadFromBytes(na, _asyncCoroutineHelper, isLinear);
-
-                // wait for our handler to get called so the semaphore will be released.
-                bool success = await sem.WaitAsync(3000);
+                var result = await basisTex.LoadFromBytes(na, isLinear);
+                texture = result.texture;
 
                 // if timeouted out, then print an error
-                if (!success)
+                if (texture == null)
                 {
                     Debug.LogError("The semaphore for the basis transcoder did not get released.");
                 }
 
-                basisTex.onTextureLoaded -= handler;
             }
             return texture;
         }
