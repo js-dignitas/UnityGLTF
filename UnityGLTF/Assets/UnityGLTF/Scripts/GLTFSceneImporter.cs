@@ -593,7 +593,15 @@ namespace UnityGLTF
                         if (!inGlobalCache)
                         {
                             //float startTime = Time.time;
+                            if (verbose)
+                            {
+                                Debug.Log("Start " + fullPath);
+                            }
                             stream = await _loader.LoadStream(fullPath);
+                            if (verbose)
+                            {
+                                Debug.Log("Done with " + fullPath);
+                            }
                             //this.downloadingTime += Time.time - startTime;
                         }
                         else
@@ -1872,7 +1880,7 @@ namespace UnityGLTF
 
             int vertexCount = (int)primitive.Attributes[SemanticProperties.POSITION].Value.Count;
 
-            return new UnityMeshData
+            var data = new UnityMeshData
             {
                 Vertices = primitive.Attributes.ContainsKey(SemanticProperties.POSITION)
                     ? meshAttributes[SemanticProperties.POSITION].AccessorContent.AsVertices.ToUnityVector3Raw()
@@ -1902,9 +1910,9 @@ namespace UnityGLTF
                     ? meshAttributes[SemanticProperties.Color(0)].AccessorContent.AsColors.ToUnityColorRaw()
                     : null,
 
-                Triangles = primitive.Indices != null
-                    ? meshAttributes[SemanticProperties.INDICES].AccessorContent.AsUInts.ToIntArrayRaw()
-                    : MeshPrimitive.GenerateTriangles(vertexCount),
+                //Triangles = primitive.Indices != null
+                //    ? meshAttributes[SemanticProperties.INDICES].AccessorContent.AsUInts.ToIntArrayRaw()
+                //    : MeshPrimitive.GenerateTriangles(vertexCount),
 
                 Tangents = primitive.Attributes.ContainsKey(SemanticProperties.TANGENT)
                     ? meshAttributes[SemanticProperties.TANGENT].AccessorContent.AsTangents.ToUnityVector4Raw()
@@ -1915,6 +1923,26 @@ namespace UnityGLTF
                     meshAttributes[SemanticProperties.Weight(0)].AccessorContent.AsVec4s.ToUnityVector4Raw(), vertexCount)
                     : null
             };
+
+            if (primitive.Indices != null)
+            {
+                data.Triangles = meshAttributes[SemanticProperties.INDICES].AccessorContent.AsUInts.ToIntArrayRaw();
+                if ((data.Triangles.Length % 3) != 0)
+                {
+                    Debug.LogError("Index count not factor 3. Size = " + data.Triangles.Length + ", From IntArrayRaw");
+                    data.Triangles = new int[0];
+                }
+            }
+            else
+            {
+                data.Triangles = MeshPrimitive.GenerateTriangles(vertexCount);
+                if ((data.Triangles.Length % 3) != 0)
+                {
+                    Debug.LogError("Index count not factor 3. Size = " + data.Triangles.Length + ", From GenerateTriangles");
+                    data.Triangles = new int[0];
+                }
+            }
+            return data;
         }
 
         List<Task> tasks = new List<Task>(8);
@@ -1927,6 +1955,11 @@ namespace UnityGLTF
                 taskTextureIds.Add(textureIndex);
             }
         }
+
+        // TODO: This is not ready to be used because of how the tasks are 
+        // all put into an array. The Loader thinks that they are trying 
+        // to download at the same time.
+        bool useMetallicRoughnessTex = false;
 
 		protected virtual async Task ConstructMaterialImageBuffers(GLTFMaterial def)
 		{
@@ -1942,7 +1975,7 @@ namespace UnityGLTF
 					var textureId = pbr.BaseColorTexture.Index;
                     AddConstructImageBufferTask(textureId.Value, textureId.Id);
 				}
-				if (pbr.MetallicRoughnessTexture != null)
+				if (useMetallicRoughnessTex && pbr.MetallicRoughnessTexture != null)
 				{
 					var textureId = pbr.MetallicRoughnessTexture.Index;
 
@@ -1970,7 +2003,7 @@ namespace UnityGLTF
 			{
 				var textureId = def.OcclusionTexture.Index;
 
-				if (!(def.PbrMetallicRoughness != null
+				if (useMetallicRoughnessTex && !(def.PbrMetallicRoughness != null
 						&& def.PbrMetallicRoughness.MetallicRoughnessTexture != null
 						&& def.PbrMetallicRoughness.MetallicRoughnessTexture.Index.Id == textureId.Id))
 				{
@@ -2228,7 +2261,7 @@ namespace UnityGLTF
 
                 mrMapper.MetallicFactor = pbr.MetallicFactor;
 
-				if (pbr.MetallicRoughnessTexture != null)
+				if (useMetallicRoughnessTex && pbr.MetallicRoughnessTexture != null)
 				{
 					TextureId textureId = pbr.MetallicRoughnessTexture.Index;
 					await ConstructTexture(textureId.Value, textureId.Id, !KeepCPUCopyOfTexture, true);

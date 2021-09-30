@@ -554,7 +554,7 @@ namespace UnityGLTF.Extensions
 				var content = attributeAccessor.AccessorContent;
 				var uIntArray = content.AsUInts;
 				var length = content.AsTriangles.Length;
-				for (int i = 0; i < length; i += 3)
+				for (int i = 0; i < length - 2; i += 3)
 				{
 					uint temp = uIntArray[i];
 					uIntArray[i] = uIntArray[i + 2];
@@ -575,7 +575,7 @@ namespace UnityGLTF.Extensions
 		public static int[] FlipFacesAndCopy(int[] triangles)
 		{
 			int[] returnArr = new int[triangles.Length];
-			for (int i = 0; i < triangles.Length; i += 3)
+			for (int i = 0; i < triangles.Length - 2; i += 3)
 			{
 				int temp = triangles[i];
 				returnArr[i] = triangles[i + 2];
